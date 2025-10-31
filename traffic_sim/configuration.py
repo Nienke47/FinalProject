@@ -36,7 +36,7 @@ class Config:
     COLLISION_RADIUS = {
         "CAR": 25,        # Increased collision radius for cars
         "TRUCK": 30,      # Large collision radius for trucks  
-        "CYCLIST": 15,    # Medium collision radius for cyclists
+        "CYCLIST": 20,    # Medium collision radius for cyclists
         "PEDESTRIAN": 10, # Small but visible collision radius for pedestrians
         "BOAT": 20        # Boat collision radius
     }
@@ -62,7 +62,7 @@ class Config:
         },
         "CYCLIST": {
             "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,  # Cyclists can follow closer
-            "MIN_FOLLOWING_DISTANCE": 40.0,        # Small vehicle safe distance
+            "MIN_FOLLOWING_DISTANCE": 50.0,        # Small vehicle safe distance
             "SEARCH_DISTANCE": 100.0,              # Shorter look-ahead distance
             "EMERGENCY_STOP_DISTANCE": 35.0,       # Quick stop buffer for cyclists
         },
