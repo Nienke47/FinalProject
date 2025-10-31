@@ -46,15 +46,15 @@ BIKES_NS_RIGHT: List[Point] = [
 ]
 BIKES_EW_RIGHT: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend beyond edges
-    (-0.10, 0.60), (0.35, 0.60), (1.10, 0.60)
+    (-0.10, 0.70), (0.35, 0.70), (1.10, 0.70)
 ]
 BIKES_EW_LEFT: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend exit point
-    (-0.10, 0.60), (0.35, 0.50), (0.60, 0.60), (0.60, 1.10)
+    (-0.10, 0.70), (0.35, 0.50), (0.70, 0.70), (0.70, 1.10)
 ]
 BIKES_EW_TURN_RIGHT: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend exit point
-    (-0.10, 0.60), (0.35, 0.60), (0.50, 0.60), (0.50, -0.10)
+    (-0.10, 0.70), (0.35, 0.70), (0.50, 0.70), (0.50, -0.10)
 ]
 
 PEDS_EW_RIGHT: List[Point] = [

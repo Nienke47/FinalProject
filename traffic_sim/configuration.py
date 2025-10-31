@@ -83,7 +83,7 @@ class Config:
 
     # Frame boundary settings for vehicle despawning
     FRAME_BOUNDARY = {
-        "DESPAWN_BUFFER": 50,                   # Extra pixels outside frame before despawning
+        "DESPAWN_BUFFER": 150,                  # Extra pixels outside frame before despawning (increased for EW spawning)
         "ENABLE_FRAME_DESPAWN": True,           # Enable automatic despawning when leaving frame
     }
 

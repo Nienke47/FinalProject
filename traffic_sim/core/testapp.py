@@ -152,7 +152,11 @@ class App:
             interval_s=5.0, random_offset=1.0, max_count=30
         )
 
-        # East-West bike spawner (multiple paths)
+        # East-West bike spawner (multiple paths) - can spawn during EW car or pedestrian phases
+        def ew_bike_can_cross():
+            # Allow EW bikes to cross during EW car phase OR EW pedestrian phase
+            return self.ctrl.can_cars_cross_ew() or self.ctrl.can_ped_cross_ew()
+        
         self.bike_ew_spawner = Spawner(
             factory=lambda: Cyclist(
                 random.choice([
@@ -161,9 +165,9 @@ class App:
                     self.bikes_ew_turn_right_px
                 ]),
                 speed_px_s=90,
-                can_cross_ok=self.ctrl.can_ped_cross_ew
+                can_cross_ok=ew_bike_can_cross
             ),
-            interval_s=6.0, random_offset=1.5, max_count=25
+            interval_s=4.0, random_offset=1.0, max_count=25  # Increased frequency: 4s ± 1s
         )
 
         # Add North-South truck spawner (same paths as cars)
@@ -193,8 +197,13 @@ class App:
             interval_s=15.0, random_offset=4.0, max_count=10  # Less frequent than cars
         )
 
+        # East-West pedestrian spawner - can cross during EW car or pedestrian phases
+        def ew_ped_can_cross():
+            # Allow EW pedestrians to cross during EW car phase OR EW pedestrian phase
+            return self.ctrl.can_cars_cross_ew() or self.ctrl.can_ped_cross_ew()
+        
         self.ped_ew_spawner = Spawner(
-            factory=lambda: Pedestrian(self.peds_ew_right_px, speed_px_s=70, can_cross_ok=self.ctrl.can_ped_cross_ew),
+            factory=lambda: Pedestrian(self.peds_ew_right_px, speed_px_s=70, can_cross_ok=ew_ped_can_cross),
             interval_s=4.0, random_offset=1.0, max_count=40
         )
 
@@ -597,11 +606,28 @@ class App:
             for sp, path_px in spawn_items:
                 # Only spawn if we haven't reached the limit
                 if len(self.agents) < max_total_agents:
-                    allow_spawn = lambda p=path_px: sum(
-                        1 for a in self.agents
-                        if getattr(a, "path", None) and a.path[0] == p[0] and not getattr(a, "done", False)
-                        and ((a.pos[0]-p[0])**2 + (a.pos[1]-p[1])**2)**0.5 < 180
-                    ) < 3  # Reduced from 4 to 3 per spawn point
+                    # Special handling for EW bike spawner (multiple paths)
+                    if sp == self.bike_ew_spawner:
+                        # Check all possible EW bike spawn points
+                        ew_bike_paths = [self.bikes_ew_right_px, self.bikes_ew_left_px, self.bikes_ew_turn_right_px]
+                        allow_spawn = lambda: sum(
+                            1 for a in self.agents
+                            if getattr(a, "path", None) and any(
+                                a.path[0] == bp[0] for bp in ew_bike_paths
+                            ) and not getattr(a, "done", False)
+                            and any(
+                                ((a.pos[0]-bp[0][0])**2 + (a.pos[1]-bp[0][1])**2)**0.5 < 180 
+                                for bp in ew_bike_paths
+                            )
+                        ) < 8  # Allow more EW bikes since they have multiple paths
+                    else:
+                        # Standard single-path spawning
+                        allow_spawn = lambda p=path_px: sum(
+                            1 for a in self.agents
+                            if getattr(a, "path", None) and a.path[0] == p[0] and not getattr(a, "done", False)
+                            and ((a.pos[0]-p[0][0])**2 + (a.pos[1]-p[0][1])**2)**0.5 < 180
+                        ) < 3  # Reduced from 4 to 3 per spawn point
+                    
                     new_agent = sp.update(dt, allow_spawn=allow_spawn)
                     if new_agent:
                         # Only add agent if spawn position is safe
