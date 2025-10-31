@@ -23,8 +23,14 @@ def get_collision_rect(vehicle: RoadUser):
     collision_radius = config.COLLISION_RADIUS.get(vehicle_type, 25)
     
     # Convert radius to rectangle dimensions (narrower width, longer height)
-    rect_width = collision_radius * 1.4   # Narrower: 1.4x instead of 2x
-    rect_height = collision_radius * 4.0  # Longer: 2.6x instead of 2x
+    # Special handling for trucks - make them even taller for better forward collision detection
+    vehicle_type = type(vehicle).__name__.upper()
+    if vehicle_type == "TRUCK":
+        rect_width = collision_radius * 1.2   # Truck: slightly narrower width
+        rect_height = collision_radius * 5.0  # Truck: much taller height (5.0x vs 4.0x)
+    else:
+        rect_width = collision_radius * 1.4   # Other vehicles: standard width
+        rect_height = collision_radius * 4.0  # Other vehicles: standard height
     
     # Create rectangle centered at vehicle position
     rect_x = vehicle.pos[0] - rect_width / 2
@@ -42,8 +48,13 @@ def get_rotated_collision_points(vehicle: RoadUser):
     collision_radius = config.COLLISION_RADIUS.get(vehicle_type, 25)
     
     # Convert radius to rectangle dimensions (narrower width, longer height)
-    half_width = (collision_radius * 1.4) / 2   # Half width
-    half_height = (collision_radius * 4.0) / 2  # Half height
+    # Special handling for trucks - make them even taller for better forward collision detection
+    if vehicle_type == "TRUCK":
+        half_width = (collision_radius * 1.2) / 2   # Truck: slightly narrower width
+        half_height = (collision_radius * 5.0) / 2  # Truck: much taller height (5.0x vs 4.0x)
+    else:
+        half_width = (collision_radius * 1.4) / 2   # Other vehicles: standard width
+        half_height = (collision_radius * 4.0) / 2  # Other vehicles: standard height
     
     # Get vehicle rotation angle
     if hasattr(vehicle, 'get_rotation'):

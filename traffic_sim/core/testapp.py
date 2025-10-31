@@ -263,41 +263,69 @@ class App:
             return True
         return False
     
-    def _is_safe_spawn_position(self, new_agent, min_spawn_distance=60):
+    def _is_safe_spawn_position(self, new_agent):
         """
         Check if it's safe to spawn a new agent at its starting position.
-        Returns True if safe, False if too close to existing vehicles.
+        Uses rotated rectangle collision detection with vehicle-specific safety margins.
+        Returns True if safe, False if hitboxes would overlap or be too close.
         """
         if not self.agents:
             return True  # No existing agents, always safe
         
-        new_pos = new_agent.pos
+        try:
+            # Import collision detection functions
+            from ..services.physics import rotated_rectangles_collide, get_rotated_collision_points
+        except ImportError:
+            from traffic_sim.services.physics import rotated_rectangles_collide, get_rotated_collision_points
         
-        # Get the size of the new agent for collision calculation
-        if hasattr(new_agent, 'width') and hasattr(new_agent, 'length'):
-            new_agent_size = max(getattr(new_agent, 'width', 50), getattr(new_agent, 'length', 80))
+        # Vehicle-specific safety buffers based on vehicle type
+        vehicle_type = type(new_agent).__name__.upper()
+        if vehicle_type == "TRUCK":
+            safety_buffer = 5   # Trucks need less strict buffer (they're big enough already)
+        elif vehicle_type == "CAR":
+            safety_buffer = 10  # Cars get moderate buffer
         else:
-            new_agent_size = 25  # Default for pedestrians/cyclists
+            safety_buffer = 8   # Cyclists and pedestrians get small buffer
+        
+        # Get the new agent's collision rectangle points
+        new_agent_points = get_rotated_collision_points(new_agent)
         
         for existing_agent in self.agents:
             if getattr(existing_agent, 'done', False):
                 continue
             
-            # Calculate distance to existing agent
-            existing_pos = existing_agent.pos
-            distance = math.hypot(existing_pos[0] - new_pos[0], existing_pos[1] - new_pos[1])
+            # First check: direct collision rectangle overlap
+            if rotated_rectangles_collide(new_agent, existing_agent):
+                return False  # Hitboxes would directly overlap
             
-            # Get size of existing agent
-            if hasattr(existing_agent, 'width') and hasattr(existing_agent, 'length'):
-                existing_size = max(getattr(existing_agent, 'width', 50), getattr(existing_agent, 'length', 80))
-            else:
-                existing_size = 25
-            
-            # Calculate required safe distance based on both vehicle sizes (reduced multiplier)
-            required_distance = max(min_spawn_distance, (new_agent_size + existing_size) * 1.0)  # Reduced from 1.5 to 1.0
-            
-            if distance < required_distance:
-                return False  # Too close to spawn safely
+            # Second check: ensure some safety buffer around hitboxes
+            # But use relaxed checking for spawn points since they're at path starts
+            try:
+                # Calculate center-to-center distance for spawn points (more lenient)
+                new_pos = new_agent.pos
+                existing_pos = existing_agent.pos
+                center_distance = math.hypot(existing_pos[0] - new_pos[0], existing_pos[1] - new_pos[1])
+                
+                # Use different minimum distances based on vehicle combinations
+                existing_type = type(existing_agent).__name__.upper()
+                
+                if vehicle_type == "TRUCK" or existing_type == "TRUCK":
+                    min_center_distance = 100  # Truck combinations need more space
+                elif vehicle_type == "CAR" and existing_type == "CAR":
+                    min_center_distance = 80   # Car-to-car moderate space
+                else:
+                    min_center_distance = 60   # Smaller vehicles need less space
+                
+                if center_distance < min_center_distance:
+                    return False  # Too close for safe spawning
+                    
+            except Exception:
+                # Fallback to simple distance check
+                new_pos = new_agent.pos
+                existing_pos = existing_agent.pos
+                center_distance = math.hypot(existing_pos[0] - new_pos[0], existing_pos[1] - new_pos[1])
+                if center_distance < 80:  # Fallback minimum distance
+                    return False
         
         return True
     
