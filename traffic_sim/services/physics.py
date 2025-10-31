@@ -35,7 +35,13 @@ def find_vehicle_ahead(current_vehicle: RoadUser, all_vehicles: List[RoadUser],
         Tuple of (vehicle_ahead, distance_to_vehicle) or None if no vehicle found
     """
     if search_distance is None:
-        search_distance = config.VEHICLE_SPACING["SEARCH_DISTANCE"]
+        # Get vehicle-specific search distance
+        if hasattr(current_vehicle, 'get_collision_settings'):
+            vehicle_settings = current_vehicle.get_collision_settings()
+            search_distance = vehicle_settings["SEARCH_DISTANCE"]
+        else:
+            # Fallback to default settings
+            search_distance = config.VEHICLE_SPACING["DEFAULT"]["SEARCH_DISTANCE"]
     
     if not hasattr(current_vehicle, 'path') or len(current_vehicle.path) < 2:
         return None
@@ -103,7 +109,8 @@ def find_vehicle_ahead(current_vehicle: RoadUser, all_vehicles: List[RoadUser],
 def calculate_safe_following_speed(current_vehicle: RoadUser, vehicle_ahead: RoadUser, 
                                  distance_to_ahead: float, desired_following_distance: float = None) -> float:
     """
-    Calculate a safe speed to maintain proper following distance.
+    Calculate a safe speed - BINARY APPROACH: Full speed or complete stop.
+    No gradual slowing down, vehicles either drive normally or stop at reasonable distance.
     
     Args:
         current_vehicle: The vehicle that needs to adjust speed
@@ -112,27 +119,21 @@ def calculate_safe_following_speed(current_vehicle: RoadUser, vehicle_ahead: Roa
         desired_following_distance: Target following distance in pixels
     
     Returns:
-        Adjusted speed factor (0.0 to 1.0) to multiply with normal speed
+        Adjusted speed factor: 1.0 (full speed) or 0.0 (complete stop)
     """
     if desired_following_distance is None:
-        desired_following_distance = config.VEHICLE_SPACING["MIN_FOLLOWING_DISTANCE"]
-    # If we're too far, go full speed
-    if distance_to_ahead > desired_following_distance * 2:
-        return 1.0
+        # Get vehicle-specific minimum following distance
+        if hasattr(current_vehicle, 'get_collision_settings'):
+            vehicle_settings = current_vehicle.get_collision_settings()
+            desired_following_distance = vehicle_settings["MIN_FOLLOWING_DISTANCE"]
+        else:
+            # Fallback to default settings
+            desired_following_distance = config.VEHICLE_SPACING["DEFAULT"]["MIN_FOLLOWING_DISTANCE"]
     
-    # If we're too close, slow down significantly
-    if distance_to_ahead < desired_following_distance * 0.5:
-        return 0.1  # Almost stop
+    # BINARY DECISION: Either full speed or complete stop
+    # Stop if we're at or below the desired following distance
+    if distance_to_ahead <= desired_following_distance:
+        return 0.0  # COMPLETE STOP - maintain reasonable distance
     
-    # If we're at the right distance, match the speed of vehicle ahead
-    if distance_to_ahead < desired_following_distance:
-        # Calculate speed factor based on distance
-        distance_ratio = distance_to_ahead / desired_following_distance
-        return max(0.2, min(1.0, distance_ratio))
-    
-    # Gradual speed adjustment as we approach the desired distance
-    if distance_to_ahead < desired_following_distance * 1.5:
-        distance_ratio = (distance_to_ahead - desired_following_distance) / (desired_following_distance * 0.5)
-        return max(0.5, min(1.0, 0.5 + 0.5 * distance_ratio))
-    
-    return 1.0
+    # Go full speed if we have sufficient distance
+    return 1.0  # FULL SPEED - no gradual slowing
