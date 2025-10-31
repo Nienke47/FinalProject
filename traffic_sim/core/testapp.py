@@ -446,21 +446,20 @@ class App:
             for a in list(self.agents):
                 a.update(dt)
                 if getattr(a, "done", False):
+                    # Remove agent from list first
                     self.agents.remove(a)
-                    # Record completion based on the reason
-                    completion_reason = getattr(a, "completion_reason", "unknown")
-                    if completion_reason == "frame_exit":
-                        self.stats.record_frame_exit(type(a).__name__, getattr(a, "total_time", 0.0))
-                    else:
-                        self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
+                    
                     # Special handling for boat
                     if isinstance(a, Boat):
-                        self.agents.remove(a)
                         self.boat_active = False
                         print("Boot heeft zijn reis voltooid! Klik op de groene knop om opnieuw te starten.")
                     else:
-                        self.agents.remove(a)
-                        self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
+                        # Record completion based on the reason for non-boat agents
+                        completion_reason = getattr(a, "completion_reason", "unknown")
+                        if completion_reason == "frame_exit":
+                            self.stats.record_frame_exit(type(a).__name__, getattr(a, "total_time", 0.0))
+                        else:
+                            self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
 
             # Check collisions with strict no-touch policy
             collisions = check_collisions(self.agents, min_dist=35.0)  # Increased to prevent any touching
