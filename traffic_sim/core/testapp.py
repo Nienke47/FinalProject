@@ -25,7 +25,8 @@ try:
         to_pixels,
         CARS_NS_UP, CARS_NS_LEFT, CARS_NS_RIGHT,
         CARS_EW_RIGHT, CARS_EW_LEFT, CARS_EW_TURN_RIGHT,
-        BIKES_NS_UP,
+        BIKES_NS_UP, BIKES_NS_LEFT, BIKES_NS_RIGHT,
+        BIKES_EW_RIGHT, BIKES_EW_LEFT, BIKES_EW_TURN_RIGHT,
         PEDS_EW_RIGHT,
     )
     from ..services.spawner import Spawner
@@ -47,7 +48,8 @@ except ImportError:
         to_pixels,
         CARS_NS_UP, CARS_NS_LEFT, CARS_NS_RIGHT,
         CARS_EW_RIGHT, CARS_EW_LEFT, CARS_EW_TURN_RIGHT,
-        BIKES_NS_UP,
+        BIKES_NS_UP, BIKES_NS_LEFT, BIKES_NS_RIGHT,
+        BIKES_EW_RIGHT, BIKES_EW_LEFT, BIKES_EW_TURN_RIGHT,
         PEDS_EW_RIGHT,
     )
     from traffic_sim.services.spawner import Spawner
@@ -99,7 +101,15 @@ class App:
         self.cars_ew_right_px = to_pixels(CARS_EW_RIGHT, *self.size)
         self.cars_ew_left_px = to_pixels(CARS_EW_LEFT, *self.size)
         self.cars_ew_turn_right_px = to_pixels(CARS_EW_TURN_RIGHT, *self.size)
+        
+        # Convert bike paths to pixels
         self.bikes_ns_up_px = to_pixels(BIKES_NS_UP, *self.size)
+        self.bikes_ns_left_px = to_pixels(BIKES_NS_LEFT, *self.size)
+        self.bikes_ns_right_px = to_pixels(BIKES_NS_RIGHT, *self.size)
+        self.bikes_ew_right_px = to_pixels(BIKES_EW_RIGHT, *self.size)
+        self.bikes_ew_left_px = to_pixels(BIKES_EW_LEFT, *self.size)
+        self.bikes_ew_turn_right_px = to_pixels(BIKES_EW_TURN_RIGHT, *self.size)
+        
         self.peds_ew_right_px = to_pixels(PEDS_EW_RIGHT, *self.size)
 
         # ====== SPAWNERS ======
@@ -128,9 +138,32 @@ class App:
             interval_s=4.0, random_offset=1.5, max_count=50
         )
 
+        # North-South bike spawner (multiple paths)
         self.bike_ns_spawner = Spawner(
-            factory=lambda: Cyclist(self.bikes_ns_up_px, speed_px_s=90, can_cross_ok=self.ctrl.can_ped_cross_ns),
+            factory=lambda: Cyclist(
+                random.choice([
+                    self.bikes_ns_up_px,
+                    self.bikes_ns_left_px,
+                    self.bikes_ns_right_px
+                ]),
+                speed_px_s=90,
+                can_cross_ok=self.ctrl.can_ped_cross_ns
+            ),
             interval_s=5.0, random_offset=1.0, max_count=30
+        )
+
+        # East-West bike spawner (multiple paths)
+        self.bike_ew_spawner = Spawner(
+            factory=lambda: Cyclist(
+                random.choice([
+                    self.bikes_ew_right_px,
+                    self.bikes_ew_left_px,
+                    self.bikes_ew_turn_right_px
+                ]),
+                speed_px_s=90,
+                can_cross_ok=self.ctrl.can_ped_cross_ew
+            ),
+            interval_s=6.0, random_offset=1.5, max_count=25
         )
 
         # Add North-South truck spawner (same paths as cars)
@@ -272,13 +305,34 @@ class App:
         if not self.agents:
             return True  # No existing agents, always safe
         
+        # Allow spawning off-screen (vehicles start their journey off-screen)
+        screen_width, screen_height = self.size
+        new_x, new_y = new_agent.pos
+        
+        # If spawning off-screen, be more lenient with safety checks
+        off_screen = (new_x < 0 or new_x > screen_width or new_y < 0 or new_y > screen_height)
+        if off_screen:
+            # For off-screen spawns, only check for direct collision overlap
+            # (no need for safety buffers since vehicles start their journey off-screen)
+            try:
+                from ..services.physics import rotated_rectangles_collide
+            except ImportError:
+                from traffic_sim.services.physics import rotated_rectangles_collide
+            
+            for existing_agent in self.agents:
+                if getattr(existing_agent, 'done', False):
+                    continue
+                if rotated_rectangles_collide(new_agent, existing_agent):
+                    return False  # Only reject if direct collision
+            return True  # Off-screen spawn is safe
+        
         try:
             # Import collision detection functions
             from ..services.physics import rotated_rectangles_collide, get_rotated_collision_points
         except ImportError:
             from traffic_sim.services.physics import rotated_rectangles_collide, get_rotated_collision_points
         
-        # Vehicle-specific safety buffers based on vehicle type
+        # Vehicle-specific safety buffers based on vehicle type (for on-screen spawns)
         vehicle_type = type(new_agent).__name__.upper()
         if vehicle_type == "TRUCK":
             safety_buffer = 5   # Trucks need less strict buffer (they're big enough already)
@@ -529,10 +583,11 @@ class App:
             # Spawn new agents
             spawn_items = [
                 (self.car_ns_spawner, self.cars_ns_up_px),
-                (self.car_ew_spawner, self.cars_ew_right_px),  # Uncommented East-West cars
+                (self.car_ew_spawner, self.cars_ew_right_px),  # East-West cars
                 (self.truck_ns_spawner, self.cars_ns_up_px),   # North-South trucks using same paths as cars
                 (self.truck_ew_spawner, self.cars_ew_right_px), # East-West trucks using same paths as cars
-                (self.bike_ns_spawner, self.bikes_ns_up_px),
+                (self.bike_ns_spawner, self.bikes_ns_up_px),   # North-South bikes (multiple paths)
+                (self.bike_ew_spawner, self.bikes_ew_right_px), # East-West bikes (multiple paths)
                 (self.ped_ew_spawner, self.peds_ew_right_px),
             ]
 
