@@ -38,7 +38,7 @@ BIKES_NS_UP: List[Point] = [
 ]
 BIKES_NS_LEFT: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend exit point
-    (0.59, 1.10), (0.59, 0.70), (0.59, 0.40), (-0.10, 0.40)
+    (0.59, 1.10), (0.59, 0.70), (0.59, 0.39), (-0.10, 0.39)
 ]
 BIKES_NS_RIGHT: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend exit point
