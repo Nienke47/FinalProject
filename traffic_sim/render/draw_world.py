@@ -80,21 +80,7 @@ class WorldRenderer:
                          (x, HEIGHT/2), (x + dash_length, HEIGHT/2), line_width)
             x += dash_length + gap_length
 
-        # Draw bridge crossing the river (on the right side)
-        bridge_thickness = road_width * 1.2
-        bridge_y = HEIGHT / 2 - bridge_thickness / 2
-        pg.draw.rect(self.background, self.ROAD_COLOR,
-                     (river_x, bridge_y, river_width, bridge_thickness))
-
-        # Bridge railings (top and bottom along the river segment)
-        railing_color = (60, 60, 60)
-        railing_height = int(max(2, bridge_thickness * 0.08))
-        # top railing
-        pg.draw.rect(self.background, railing_color,
-                     (river_x, bridge_y - railing_height, river_width, railing_height))
-        # bottom railing
-        pg.draw.rect(self.background, railing_color,
-                     (river_x, bridge_y + bridge_thickness, river_width, railing_height))
+        # Note: Bridge is now drawn separately in testapp.py to ensure proper layering with boats
 
 def draw(screen, background, views=()):
     """Draw entire scene"""
