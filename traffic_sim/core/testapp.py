@@ -20,6 +20,7 @@ try:
     from ..domain.actors.cyclist import Cyclist
     from ..domain.actors.pedestrian import Pedestrian
     from ..domain.actors.truck import Truck
+    from ..domain.world.boat import Boat
     from ..services.pathing import (
         to_pixels,
         CARS_NS_UP, CARS_NS_LEFT, CARS_NS_RIGHT,
@@ -41,6 +42,7 @@ except ImportError:
     from traffic_sim.domain.actors.cyclist import Cyclist
     from traffic_sim.domain.actors.pedestrian import Pedestrian
     from traffic_sim.domain.actors.truck import Truck
+    from traffic_sim.domain.world.boat import Boat
     from traffic_sim.services.pathing import (
         to_pixels,
         CARS_NS_UP, CARS_NS_LEFT, CARS_NS_RIGHT,
@@ -193,6 +195,32 @@ class App:
         
         self.traffic_lights = [self.tl_car_ns, self.tl_car_ew, self.tl_ped_ns, self.tl_ped_ew]
 
+        # ====== BOAT ======
+        # Create boat path in river area (right side) that goes under the bridge
+        river_start_x = self.size[0] * 0.72  # River starts at 72% of screen width
+        river_width = self.size[0] * 0.28
+        river_center = river_start_x + river_width * 0.5
+        
+        # Simple path from bottom to top, passing under bridge
+        boat_path = [
+            (river_center, self.size[1] + 50),  # Start below screen
+            (river_center, self.size[1] * 0.75),  # Quarter way up
+            (river_center, self.size[1] * 0.5),   # Under bridge area
+            (river_center, self.size[1] * 0.25),  # Three quarters up
+            (river_center, -50)                   # End above screen
+        ]
+        
+        self.boat = Boat(scale=1.0, path_px=boat_path, speed_px_s=80.0)
+        self.boat_active = False  # Boat starts inactive
+        
+        # ====== BOAT BUTTON ======
+        self.button_width = 120
+        self.button_height = 40
+        self.button_x = 20
+        self.button_y = self.size[1] - self.button_height - 20
+        self.button_rect = pg.Rect(self.button_x, self.button_y, self.button_width, self.button_height)
+        self.button_font = pg.font.Font(None, 24)
+
         # Domain agents (all self-rendering)
         self.agents = []
 
@@ -285,6 +313,51 @@ class App:
                     
                     print(f"Separated vehicles: moved {move_distance:.1f}px each")
 
+    def _draw_boat_button(self):
+        """Draw the boat control button"""
+        # Button colors
+        if not self.boat_active:
+            button_color = (0, 150, 0)  # Green when ready to start
+            text_color = (255, 255, 255)
+            button_text = "Start Boot"
+        else:
+            button_color = (150, 150, 150)  # Gray when boat is active
+            text_color = (200, 200, 200)
+            button_text = "Boot Actief"
+        
+        # Draw button background
+        pg.draw.rect(self.screen, button_color, self.button_rect)
+        pg.draw.rect(self.screen, (255, 255, 255), self.button_rect, 2)  # White border
+        
+        # Draw button text
+        text_surface = self.button_font.render(button_text, True, text_color)
+        text_rect = text_surface.get_rect(center=self.button_rect.center)
+        self.screen.blit(text_surface, text_rect)
+
+    def _draw_bridge_overlay(self):
+        """Draw the bridge over the river (on top of boats)"""
+        # Bridge parameters (same as in WorldRenderer)
+        river_start_x = self.size[0] * 0.7
+        river_width = self.size[0] * 0.3
+        road_width = self.size[0] * 0.15
+        bridge_thickness = road_width * 1.2
+        bridge_y = self.size[1] / 2 - bridge_thickness / 2
+
+        # Draw bridge crossing the river
+        bridge_color = (80, 80, 80)  # Same as road color
+        pg.draw.rect(self.screen, bridge_color,
+                     (river_start_x, bridge_y, river_width, bridge_thickness))
+
+        # Bridge railings (top and bottom)
+        railing_color = (60, 60, 60)
+        railing_height = int(max(2, bridge_thickness * 0.08))
+        # top railing
+        pg.draw.rect(self.screen, railing_color,
+                     (river_start_x, bridge_y - railing_height, river_width, railing_height))
+        # bottom railing
+        pg.draw.rect(self.screen, railing_color,
+                     (river_start_x, bridge_y + bridge_thickness, river_width, railing_height))
+
     def print_stats(self):
         """Print current simulation statistics."""
         stats = self.stats.get_summary()
@@ -321,6 +394,17 @@ class App:
             for e in pg.event.get():
                 if e.type == pg.QUIT or (e.type == pg.KEYDOWN and e.key == pg.K_ESCAPE):
                     running = False
+                elif e.type == pg.MOUSEBUTTONDOWN and e.button == 1:  # Left mouse click
+                    if self.button_rect.collidepoint(e.pos):
+                        # Clicked on boat button
+                        if not self.boat_active:
+                            self.boat_active = True
+                            self.boat.i = 0  # Reset to start of path
+                            self.boat.pos = list(self.boat.path[0])  # Reset position
+                            self.boat.done = False
+                            if self.boat not in self.agents:
+                                self.agents.append(self.boat)
+                            print("Boot gestart via knop!")
 
             # Update traffic controller
             self.ctrl.update(dt)
@@ -362,13 +446,20 @@ class App:
             for a in list(self.agents):
                 a.update(dt)
                 if getattr(a, "done", False):
+                    # Remove agent from list first
                     self.agents.remove(a)
-                    # Record completion based on the reason
-                    completion_reason = getattr(a, "completion_reason", "unknown")
-                    if completion_reason == "frame_exit":
-                        self.stats.record_frame_exit(type(a).__name__, getattr(a, "total_time", 0.0))
+                    
+                    # Special handling for boat
+                    if isinstance(a, Boat):
+                        self.boat_active = False
+                        print("Boot heeft zijn reis voltooid! Klik op de groene knop om opnieuw te starten.")
                     else:
-                        self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
+                        # Record completion based on the reason for non-boat agents
+                        completion_reason = getattr(a, "completion_reason", "unknown")
+                        if completion_reason == "frame_exit":
+                            self.stats.record_frame_exit(type(a).__name__, getattr(a, "total_time", 0.0))
+                        else:
+                            self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
 
             # Check collisions with strict no-touch policy
             collisions = check_collisions(self.agents, min_dist=35.0)  # Increased to prevent any touching
@@ -381,18 +472,39 @@ class App:
 
             # === RENDER ===
             screen_fill_color = (40, 44, 52)
+            
+            # First draw basic background (without bridge)
             if self.background:
-                self.screen.blit(self.background, (0, 0))
+                # Draw everything except the bridge part
+                temp_surface = self.background.copy()
+                self.screen.blit(temp_surface, (0, 0))
             else:
                 self.screen.fill(screen_fill_color)
 
-            # Draw traffic lights first (so they appear behind vehicles if needed)
+            # Draw boat first (so it appears under the bridge)
+            boat_agents = [agent for agent in self.agents if isinstance(agent, Boat)]
+            for boat in boat_agents:
+                boat.draw(self.screen)
+
+            # Now draw the bridge on top of the boat
+            self._draw_bridge_overlay()
+
+            # Draw traffic lights 
             for traffic_light in self.traffic_lights:
                 traffic_light.draw(self.screen)
 
-            # Draw all agents (self-rendering)
+            # Draw all other agents (cars, trucks, etc.)
             for agent in self.agents:
-                agent.draw(self.screen)
+                if not isinstance(agent, Boat):
+                    agent.draw(self.screen)
+
+            # Draw boat control button
+            self._draw_boat_button()
+            
+            # Draw status text if boat is active
+            if self.boat_active and self.boat in self.agents and not self.boat.done:
+                status_text = self.stats_font.render("Boot vaart onder de brug door!", True, (0, 255, 0))
+                self.screen.blit(status_text, (10, 10))
 
             pg.display.flip()
 
