@@ -84,8 +84,43 @@ class RoadUser:
         # But only BEFORE they pass path point 2 (index 2)
         return 1
 
+    def _are_paths_conflicting(self, other_vehicle):
+        """
+        Check if this vehicle's path conflicts with another vehicle's path.
+        Returns True if paths are the same/intersecting, False if they're parallel lanes.
+        """
+        if not hasattr(self, 'path') or not hasattr(other_vehicle, 'path'):
+            return True  # Default to conflict if paths unknown
+        
+        if not self.path or not other_vehicle.path:
+            return True  # Default to conflict if paths empty
+        
+        # Get starting points of both paths
+        my_start = self.path[0]
+        other_start = other_vehicle.path[0]
+        
+        # Calculate horizontal distance between path starts
+        lane_separation = abs(my_start[0] - other_start[0])
+        
+        # If lanes are well-separated (> 45px), they're parallel lanes
+        if lane_separation > 45:
+            # Check if vehicles are moving in roughly the same direction
+            if len(self.path) > 1 and len(other_vehicle.path) > 1:
+                my_direction = (self.path[1][1] - self.path[0][1])  # Y direction (negative = up, positive = down)
+                other_direction = (other_vehicle.path[1][1] - other_vehicle.path[0][1])
+                
+                # If both moving in same direction (both up or both down), they're parallel
+                if (my_direction > 0 and other_direction > 0) or (my_direction < 0 and other_direction < 0):
+                    return False  # Parallel lanes, no conflict
+        
+        return True  # Same lane or intersecting paths
+
     def _check_collision_ahead(self, target_pos, safe_distance=60):
-        """Check if there's another vehicle too close in front of us"""
+        """
+        Lane-aware collision checking - uses different distances for same lane vs parallel lanes.
+        Check if moving to target_pos would cause us to be too close to another vehicle.
+        Returns True if collision would occur, False if safe to move.
+        """
         if not hasattr(self, 'all_agents') or not self.all_agents:
             return False
             
@@ -125,6 +160,17 @@ class RoadUser:
         for other in nearby_agents:
             other_x, other_y = other.pos
             
+            # Check if paths are conflicting (same lane vs parallel lanes)
+            paths_conflict = self._are_paths_conflicting(other)
+            
+            # Use different safe distances based on path relationship
+            if paths_conflict:
+                # Same lane or intersecting paths - use full safe distance
+                effective_safe_distance = safe_distance
+            else:
+                # Parallel lanes - use much smaller distance (just avoid actual collision)
+                effective_safe_distance = 25  # Just enough to prevent collision overlap
+            
             # Check distance to other vehicle at current position
             current_dist = math.hypot(other_x - current_x, other_y - current_y)
             
@@ -132,7 +178,7 @@ class RoadUser:
             target_dist = math.hypot(other_x - target_x, other_y - target_y)
             
             # If either distance is too close, prevent movement
-            if current_dist < safe_distance or target_dist < safe_distance:
+            if current_dist < effective_safe_distance or target_dist < effective_safe_distance:
                 # Additional check: are we moving towards each other?
                 to_other_x = other_x - current_x
                 to_other_y = other_y - current_y
@@ -141,7 +187,7 @@ class RoadUser:
                 dot_product = (to_other_x * move_nx + to_other_y * move_ny)
                 
                 # If we're moving towards the other vehicle or very close, block movement
-                if dot_product > 0 or current_dist < safe_distance * 0.8:
+                if dot_product > 0 or current_dist < effective_safe_distance * 0.8:
                     return True
                 
         return False
