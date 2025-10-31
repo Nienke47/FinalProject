@@ -6,15 +6,15 @@ Point = Tuple[float, float]  # genormaliseerd 0..1
 # North-South routes (going up)
 CARS_NS_UP: List[Point] = [
     # Straight up - extend further beyond screen edges
-    (0.54, 1.10), (0.54, 0.80), (0.54, -0.10)
+    (0.54, 1.10), (0.54, 0.70), (0.54, -0.10)
 ]
 CARS_NS_RIGHT: List[Point] = [
     # Turn left from south to east - extend exit point
-    (0.54, 1.10), (0.54, 0.80), (0.54, 0.55), (1.10, 0.55)
+    (0.54, 1.10), (0.54, 0.70), (0.54, 0.55), (1.10, 0.55)
 ]
 CARS_NS_LEFT: List[Point] = [
     # Turn right from south to west - extend exit point
-    (0.54, 1.10), (0.54, 0.80), (0.54, 0.45), (-0.10, 0.45)
+    (0.54, 1.10), (0.54, 0.70), (0.54, 0.45), (-0.10, 0.45)
 ]
 
 # East-West routes
@@ -34,7 +34,7 @@ CARS_EW_TURN_RIGHT: List[Point] = [
 # Fietsers (rood) en voetgangers (bruin) iets opzij van het midden:
 BIKES_NS_UP: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend beyond edges
-    (0.59, 1.10), (0.59, 0.80), (0.59, -0.10)
+    (0.59, 1.10), (0.59, 0.70), (0.59, -0.10)
 ]
 PEDS_EW_RIGHT: List[Point] = [
     # pedestrians on the grass further from the road (north of sidewalk) - extend beyond edges
