@@ -7,9 +7,9 @@ if __name__ == "__main__":
     if str(src_path) not in sys.path:
         sys.path.insert(0, str(src_path))
 try:
-    from .core.testapp import App
+    from .core.app import App
 except ImportError:
-    from traffic_sim.core.testapp import App
+    from traffic_sim.core.app import App
 
 if __name__ == "__main__":
     App().run()
