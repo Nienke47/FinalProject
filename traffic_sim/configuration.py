@@ -45,10 +45,19 @@ class Config:
     INTERSECTION_POINT = (WIDTH // 2, HEIGHT // 2)
     ROAD_WIDTH = 60
 
+    # Vehicle spacing settings
+    VEHICLE_SPACING = {
+        "FOLLOWING_DISTANCE_MULTIPLIER": 2.0,  # Multiple of vehicle size for following distance (increased)
+        "MIN_FOLLOWING_DISTANCE": 80.0,        # Minimum following distance in pixels (increased)
+        "SEARCH_DISTANCE": 250.0,              # How far ahead to look for vehicles (increased)
+        "EMERGENCY_STOP_DISTANCE": 50.0,       # Distance for emergency collision avoidance (increased)
+    }
+
     # Debug settings
     DEBUG_MODE = False
     SHOW_PATHS = False
     SHOW_COLLISION_CIRCLES = False
+    SHOW_FOLLOWING_DISTANCE = False  # Show following distance indicators
 
     # Asset paths (relative to src folder)
     ASSETS_DIR = "assets"

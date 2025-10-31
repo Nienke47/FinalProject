@@ -91,6 +91,47 @@ class Car(RoadUser):
         
         # Draw the rotated surface
         surface.blit(rotated, rect)
+        
+        # Draw following distance indicator if debug mode is enabled
+        if config.DEBUG_MODE and config.SHOW_FOLLOWING_DISTANCE:
+            self._draw_following_distance_debug(surface)
+    
+    def _draw_following_distance_debug(self, surface: pygame.Surface) -> None:
+        """Draw visual indicators for following distance (debug mode only)."""
+        if not hasattr(self, 'all_agents') or not self.all_agents:
+            return
+        
+        # Import physics functions
+        try:
+            from ...services.physics import find_vehicle_ahead
+        except ImportError:
+            from traffic_sim.services.physics import find_vehicle_ahead
+        
+        # Find vehicle ahead
+        result = find_vehicle_ahead(self, self.all_agents)
+        if result is None:
+            return
+        
+        vehicle_ahead, distance_to_ahead = result
+        
+        # Calculate desired following distance
+        vehicle_size = max(getattr(self, 'width', 50), getattr(self, 'length', 80))
+        desired_distance = vehicle_size * config.VEHICLE_SPACING["FOLLOWING_DISTANCE_MULTIPLIER"]
+        desired_distance = max(desired_distance, config.VEHICLE_SPACING["MIN_FOLLOWING_DISTANCE"])
+        
+        # Draw line to vehicle ahead
+        pygame.draw.line(surface, (255, 255, 0), self.pos, vehicle_ahead.pos, 2)
+        
+        # Draw desired following distance circle
+        pygame.draw.circle(surface, (0, 255, 0), 
+                         (int(self.pos[0]), int(self.pos[1])), 
+                         int(desired_distance), 2)
+        
+        # Draw current distance text
+        font = pygame.font.Font(None, 24)
+        text = font.render(f"{distance_to_ahead:.0f}px", True, (255, 255, 255))
+        text_rect = text.get_rect(center=(int(self.pos[0]), int(self.pos[1] - 40)))
+        surface.blit(text, text_rect)
 
     def clone(self) -> "Car":
         """Return a shallow copy of this Car (same type)."""

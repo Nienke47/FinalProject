@@ -5,6 +5,7 @@ from pathlib import Path
 import time
 import sys
 import random
+import math
 
 if __name__ == "__main__":
     src_path = Path(__file__).resolve().parents[2]
@@ -201,8 +202,88 @@ class App:
             self._add_agent(self.car_ew_spawner.factory())
 
     def _add_agent(self, agent):
-        agent.all_agents = self.agents
-        self.agents.append(agent)
+        # Check if spawn position is safe (no collision with existing vehicles)
+        if self._is_safe_spawn_position(agent):
+            agent.all_agents = self.agents
+            self.agents.append(agent)
+            return True
+        return False
+    
+    def _is_safe_spawn_position(self, new_agent, min_spawn_distance=120):
+        """
+        Check if it's safe to spawn a new agent at its starting position.
+        Returns True if safe, False if too close to existing vehicles.
+        """
+        if not self.agents:
+            return True  # No existing agents, always safe
+        
+        new_pos = new_agent.pos
+        
+        # Get the size of the new agent for collision calculation
+        if hasattr(new_agent, 'width') and hasattr(new_agent, 'length'):
+            new_agent_size = max(getattr(new_agent, 'width', 50), getattr(new_agent, 'length', 80))
+        else:
+            new_agent_size = 25  # Default for pedestrians/cyclists
+        
+        for existing_agent in self.agents:
+            if getattr(existing_agent, 'done', False):
+                continue
+            
+            # Calculate distance to existing agent
+            existing_pos = existing_agent.pos
+            distance = math.hypot(existing_pos[0] - new_pos[0], existing_pos[1] - new_pos[1])
+            
+            # Get size of existing agent
+            if hasattr(existing_agent, 'width') and hasattr(existing_agent, 'length'):
+                existing_size = max(getattr(existing_agent, 'width', 50), getattr(existing_agent, 'length', 80))
+            else:
+                existing_size = 25
+            
+            # Calculate required safe distance based on both vehicle sizes
+            required_distance = max(min_spawn_distance, (new_agent_size + existing_size) * 1.5)
+            
+            if distance < required_distance:
+                return False  # Too close to spawn safely
+        
+        return True
+    
+    def _separate_colliding_vehicles(self):
+        """
+        Emergency function to separate vehicles that are too close to each other.
+        This should rarely be needed if collision prevention is working correctly.
+        """
+        min_separation = 60.0  # Minimum distance between vehicle centers
+        
+        for i in range(len(self.agents)):
+            for j in range(i + 1, len(self.agents)):
+                agent1 = self.agents[i]
+                agent2 = self.agents[j]
+                
+                if (getattr(agent1, 'done', False) or getattr(agent2, 'done', False)):
+                    continue
+                
+                # Calculate distance between agents
+                dx = agent2.pos[0] - agent1.pos[0]
+                dy = agent2.pos[1] - agent1.pos[1]
+                distance = math.hypot(dx, dy)
+                
+                if distance < min_separation and distance > 0:
+                    # Calculate separation vector
+                    separation_needed = min_separation - distance
+                    
+                    # Normalize direction vector
+                    nx = dx / distance
+                    ny = dy / distance
+                    
+                    # Move agents apart (each moves half the required distance)
+                    move_distance = separation_needed * 0.5
+                    
+                    agent1.pos[0] -= nx * move_distance
+                    agent1.pos[1] -= ny * move_distance
+                    agent2.pos[0] += nx * move_distance
+                    agent2.pos[1] += ny * move_distance
+                    
+                    print(f"Separated vehicles: moved {move_distance:.1f}px each")
 
     def print_stats(self):
         """Print current simulation statistics."""
@@ -255,22 +336,29 @@ class App:
             # Spawn new agents
             spawn_items = [
                 (self.car_ns_spawner, self.cars_ns_up_px),
-                # (self.car_ew_spawner, self.cars_ew_right_px),
+                (self.car_ew_spawner, self.cars_ew_right_px),  # Uncommented East-West cars
                 (self.truck_ew_spawner, self.cars_ew_right_px),
                 (self.bike_ns_spawner, self.bikes_ns_up_px),
                 (self.ped_ew_spawner, self.peds_ew_right_px),
             ]
 
+            # Limit total number of agents to prevent lag
+            max_total_agents = 30
+            
             for sp, path_px in spawn_items:
-                allow_spawn = lambda p=path_px: sum(
-                    1 for a in self.agents
-                    if getattr(a, "path", None) and a.path[0] == p[0] and not getattr(a, "done", False)
-                    and ((a.pos[0]-p[0])**2 + (a.pos[1]-p[1])**2)**0.5 < 180
-                ) < 4
-                new_agent = sp.update(dt, allow_spawn=allow_spawn)
-                if new_agent:
-                    self._add_agent(new_agent)
-                    self.stats.record_spawn(type(new_agent).__name__)
+                # Only spawn if we haven't reached the limit
+                if len(self.agents) < max_total_agents:
+                    allow_spawn = lambda p=path_px: sum(
+                        1 for a in self.agents
+                        if getattr(a, "path", None) and a.path[0] == p[0] and not getattr(a, "done", False)
+                        and ((a.pos[0]-p[0])**2 + (a.pos[1]-p[1])**2)**0.5 < 180
+                    ) < 3  # Reduced from 4 to 3 per spawn point
+                    new_agent = sp.update(dt, allow_spawn=allow_spawn)
+                    if new_agent:
+                        # Only add agent if spawn position is safe
+                        if self._add_agent(new_agent):
+                            self.stats.record_spawn(type(new_agent).__name__)
+                        # If spawn position is not safe, the agent is discarded
 
             # Update agents
             for a in list(self.agents):
@@ -279,10 +367,14 @@ class App:
                     self.agents.remove(a)
                     self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
 
-            # Check collisions
-            collisions = check_collisions(self.agents, min_dist=15.0)
+            # Check collisions with stricter threshold
+            collisions = check_collisions(self.agents, min_dist=10.0)  # Reduced from 15.0 to 10.0
             if collisions:
                 self.stats.record_collision()
+                # Log collision details for debugging
+                print(f"WARNING: Collision detected! Total agents: {len(self.agents)}")
+                # Attempt to separate colliding vehicles
+                self._separate_colliding_vehicles()
 
             # === RENDER ===
             screen_fill_color = (40, 44, 52)
