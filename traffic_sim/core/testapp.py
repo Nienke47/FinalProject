@@ -133,17 +133,31 @@ class App:
             interval_s=5.0, random_offset=1.0, max_count=30
         )
 
+        # Add North-South truck spawner (same paths as cars)
+        self.truck_ns_spawner = Spawner(
+            factory=lambda: Truck(
+                random.choice([
+                    self.cars_ns_up_px,
+                    self.cars_ns_left_px, 
+                    self.cars_ns_right_px
+                ]),
+                speed_px_s=100,
+                can_cross_ok=self.ctrl.can_cars_cross_ns
+            ),
+            interval_s=12.0, random_offset=3.0, max_count=15  # Less frequent than cars
+        )
+
         self.truck_ew_spawner = Spawner(
             factory=lambda: Truck(
                 random.choice([
-                    to_pixels([(p[0] - 0.1, p[1]) for p in CARS_EW_RIGHT], *self.size),
-                    to_pixels([(p[0] - 0.1, p[1]) for p in CARS_EW_LEFT], *self.size),
-                    to_pixels([(p[0] - 0.1, p[1]) for p in CARS_EW_TURN_RIGHT], *self.size)
+                    self.cars_ew_right_px,
+                    self.cars_ew_left_px,
+                    self.cars_ew_turn_right_px
                 ]),
                 speed_px_s=100,
                 can_cross_ok=self.ctrl.can_cars_cross_ew
             ),
-            interval_s=8.0, random_offset=2.0, max_count=20
+            interval_s=15.0, random_offset=4.0, max_count=10  # Less frequent than cars
         )
 
         self.ped_ew_spawner = Spawner(
@@ -220,6 +234,15 @@ class App:
         self.button_y = self.size[1] - self.button_height - 20
         self.button_rect = pg.Rect(self.button_x, self.button_y, self.button_width, self.button_height)
         self.button_font = pg.font.Font(None, 24)
+        
+        # ====== COLLISION VISUALIZATION TOGGLE ======
+        self.show_collision_outlines = False
+        self.collision_button_width = 140
+        self.collision_button_height = 40
+        self.collision_button_x = self.button_x + self.button_width + 10  # Next to boat button
+        self.collision_button_y = self.button_y
+        self.collision_button_rect = pg.Rect(self.collision_button_x, self.collision_button_y, 
+                                           self.collision_button_width, self.collision_button_height)
 
         # Domain agents (all self-rendering)
         self.agents = []
@@ -228,6 +251,9 @@ class App:
         for _ in range(2):
             self._add_agent(self.car_ns_spawner.factory())
             self._add_agent(self.car_ew_spawner.factory())
+        # Add some initial trucks
+        self._add_agent(self.truck_ns_spawner.factory())
+        self._add_agent(self.truck_ew_spawner.factory())
 
     def _add_agent(self, agent):
         # Check if spawn position is safe (no collision with existing vehicles)
@@ -334,6 +360,59 @@ class App:
         text_rect = text_surface.get_rect(center=self.button_rect.center)
         self.screen.blit(text_surface, text_rect)
 
+    def _draw_collision_toggle_button(self):
+        """Draw the collision visualization toggle button"""
+        # Button colors
+        if self.show_collision_outlines:
+            button_color = (0, 100, 200)  # Blue when active
+            text_color = (255, 255, 255)  # White text
+            button_text = "Collision: ON"
+        else:
+            button_color = (100, 100, 100)  # Gray when inactive
+            text_color = (255, 255, 255)  # White text
+            button_text = "Collision: OFF"
+
+        # Draw button background
+        pg.draw.rect(self.screen, button_color, self.collision_button_rect)
+        pg.draw.rect(self.screen, (255, 255, 255), self.collision_button_rect, 2)  # White border
+
+        # Draw button text
+        text_surface = self.button_font.render(button_text, True, text_color)
+        text_rect = text_surface.get_rect(center=self.collision_button_rect.center)
+        self.screen.blit(text_surface, text_rect)
+
+    def _draw_collision_outlines(self):
+        """Draw blue collision outlines for all vehicles (rotated rectangles)"""
+        if not self.show_collision_outlines:
+            return
+            
+        for agent in self.agents:
+            if hasattr(agent, 'pos') and not isinstance(agent, Boat):
+                # Get the rotated collision rectangle points
+                try:
+                    from ..services.physics import get_rotated_collision_points
+                    corner_points = get_rotated_collision_points(agent)
+                    
+                    # Convert to integer coordinates for drawing
+                    int_points = [(int(x), int(y)) for x, y in corner_points]
+                    
+                    # Draw blue rectangle outline using polygon
+                    pg.draw.polygon(self.screen, (0, 150, 255), int_points, 2)  # 2 pixel thick outline
+                    
+                except ImportError:
+                    # Fallback to axis-aligned rectangle if import fails
+                    vehicle_type = type(agent).__name__.upper()
+                    collision_radius = config.COLLISION_RADIUS.get(vehicle_type, 25)
+                    
+                    rect_width = collision_radius * 1.4
+                    rect_height = collision_radius * 2.6
+                    
+                    rect_x = int(agent.pos[0] - rect_width / 2)
+                    rect_y = int(agent.pos[1] - rect_height / 2)
+                    collision_rect = pg.Rect(rect_x, rect_y, rect_width, rect_height)
+                    
+                    pg.draw.rect(self.screen, (0, 150, 255), collision_rect, 2)
+
     def _draw_bridge_overlay(self):
         """Draw the bridge over the river (on top of boats)"""
         # Bridge parameters (same as in WorldRenderer)
@@ -405,6 +484,10 @@ class App:
                             if self.boat not in self.agents:
                                 self.agents.append(self.boat)
                             print("Boot gestart via knop!")
+                    elif self.collision_button_rect.collidepoint(e.pos):
+                        # Clicked on collision visualization toggle button
+                        self.show_collision_outlines = not self.show_collision_outlines
+                        print(f"Collision outlines: {'ON' if self.show_collision_outlines else 'OFF'}")
 
             # Update traffic controller
             self.ctrl.update(dt)
@@ -419,7 +502,8 @@ class App:
             spawn_items = [
                 (self.car_ns_spawner, self.cars_ns_up_px),
                 (self.car_ew_spawner, self.cars_ew_right_px),  # Uncommented East-West cars
-                (self.truck_ew_spawner, self.cars_ew_right_px),
+                (self.truck_ns_spawner, self.cars_ns_up_px),   # North-South trucks using same paths as cars
+                (self.truck_ew_spawner, self.cars_ew_right_px), # East-West trucks using same paths as cars
                 (self.bike_ns_spawner, self.bikes_ns_up_px),
                 (self.ped_ew_spawner, self.peds_ew_right_px),
             ]
@@ -489,17 +573,21 @@ class App:
             # Now draw the bridge on top of the boat
             self._draw_bridge_overlay()
 
-            # Draw traffic lights 
-            for traffic_light in self.traffic_lights:
-                traffic_light.draw(self.screen)
-
-            # Draw all other agents (cars, trucks, etc.)
+            # Draw all other agents (cars, trucks, etc.) FIRST
             for agent in self.agents:
                 if not isinstance(agent, Boat):
                     agent.draw(self.screen)
 
-            # Draw boat control button
+            # Draw traffic lights ON TOP (so vehicles appear to drive under them)
+            for traffic_light in self.traffic_lights:
+                traffic_light.draw(self.screen)
+
+            # Draw collision outlines if enabled (on top of everything except UI)
+            self._draw_collision_outlines()
+
+            # Draw UI buttons
             self._draw_boat_button()
+            self._draw_collision_toggle_button()
             
             # Draw status text if boat is active
             if self.boat_active and self.boat in self.agents and not self.boat.done:

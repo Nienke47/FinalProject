@@ -149,7 +149,49 @@ class RoadUser:
     def _check_any_collision(self, position, collision_radius=None):
         """
         Strict collision check - prevents any overlap with other vehicles.
+        Uses rotated rectangular collision detection.
         Returns True if there would be a collision at the given position.
+        """
+        if not hasattr(self, 'all_agents') or not self.all_agents:
+            return False
+        
+        # Create a temporary vehicle object at the test position for collision checking
+        try:
+            # For Car objects, need to handle the new parameter names
+            if type(self).__name__ == 'Car':
+                temp_vehicle = type(self)(self.path, self.speed, 
+                                        car_width=int(getattr(self, 'width', 40)), 
+                                        car_length=int(getattr(self, 'length', 64)),
+                                        can_cross_ok=self._can_cross)
+            else:
+                # For other vehicle types, use original constructor
+                temp_vehicle = type(self)(self.path, self.speed, self._can_cross)
+            
+            temp_vehicle.pos = list(position)
+            temp_vehicle.i = self.i  # Copy path index for rotation calculation
+        except Exception:
+            # Fallback: if temp vehicle creation fails, use distance-based collision
+            return self._check_any_collision_legacy(position, collision_radius)
+        
+        # Import physics functions
+        try:
+            from ...services.physics import rotated_rectangles_collide
+        except ImportError:
+            from traffic_sim.services.physics import rotated_rectangles_collide
+        
+        for other in self.all_agents:
+            if other is self or getattr(other, 'done', False):
+                continue
+            
+            # Check if rotated rectangles would overlap
+            if rotated_rectangles_collide(temp_vehicle, other):
+                return True
+        
+        return False
+
+    def _check_any_collision_legacy(self, position, collision_radius=None):
+        """
+        Legacy circular collision check - kept for reference.
         """
         if not hasattr(self, 'all_agents') or not self.all_agents:
             return False

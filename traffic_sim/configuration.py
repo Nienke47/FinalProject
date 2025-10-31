@@ -25,7 +25,7 @@ class Config:
 
     # Actor speeds (pixels per second)
     SPEEDS = {
-        "CAR": 120.0,
+        "CAR": 100.0,
         "TRUCK": 80.0,
         "CYCLIST": 60.0,
         "PEDESTRIAN": 40.0,
@@ -34,11 +34,11 @@ class Config:
 
     # Collision detection - Physical boundaries to prevent touching
     COLLISION_RADIUS = {
-        "CAR": 25,        # Increased collision radius for cars
-        "TRUCK": 30,      # Large collision radius for trucks  
-        "CYCLIST": 20,    # Medium collision radius for cyclists
-        "PEDESTRIAN": 10, # Small but visible collision radius for pedestrians
-        "BOAT": 20        # Boat collision radius
+        "CAR": 22,        # Increased by 10% (20 * 1.1 = 22)
+        "TRUCK": 41,      # Increased by 1.25x (33 * 1.25 = 41) - bigger vertical collision
+        "CYCLIST": 12,    # Reduced collision width for cyclists (was 17)
+        "PEDESTRIAN": 11, # Increased by 10% (10 * 1.1 = 11)
+        "BOAT": 22        # Increased by 10% (20 * 1.1 = 22)
     }
 
     # Path settings
@@ -49,35 +49,35 @@ class Config:
     # All vehicles maintain safe distances to prevent any contact/overlap
     VEHICLE_SPACING = {
         "CAR": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 4,  # Cars maintain moderate following distance
-            "MIN_FOLLOWING_DISTANCE": 60.0,        # Safe minimum distance - no touching
-            "SEARCH_DISTANCE": 150.0,              # How far ahead cars look
-            "EMERGENCY_STOP_DISTANCE": 45.0,       # Emergency stop buffer - prevents contact
+            "FOLLOWING_DISTANCE_MULTIPLIER": 4.4,  # Increased by 10% (4 * 1.1 = 4.4)
+            "MIN_FOLLOWING_DISTANCE": 44.0,        # Increased by 10% (40 * 1.1 = 44)
+            "SEARCH_DISTANCE": 88.0,              # Increased by 10% (80 * 1.1 = 88)
+            "EMERGENCY_STOP_DISTANCE": 33.0,       # Increased by 10% (30 * 1.1 = 33)
         },
         "TRUCK": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 5.0,  # Trucks need more space due to size
-            "MIN_FOLLOWING_DISTANCE": 80.0,        # Large vehicle safe distance
-            "SEARCH_DISTANCE": 200.0,              # Trucks look further ahead
-            "EMERGENCY_STOP_DISTANCE": 65.0,       # Extra large emergency buffer
+            "FOLLOWING_DISTANCE_MULTIPLIER": 5.5,  # Increased by 10% (5.0 * 1.1 = 5.5)
+            "MIN_FOLLOWING_DISTANCE": 88.0,        # Increased by 10% (80 * 1.1 = 88)
+            "SEARCH_DISTANCE": 220.0,              # Increased by 10% (200 * 1.1 = 220)
+            "EMERGENCY_STOP_DISTANCE": 72.0,       # Increased by 10% (65 * 1.1 = 71.5 ≈ 72)
         },
         "CYCLIST": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,  # Cyclists can follow closer
-            "MIN_FOLLOWING_DISTANCE": 50.0,        # Small vehicle safe distance
-            "SEARCH_DISTANCE": 100.0,              # Shorter look-ahead distance
-            "EMERGENCY_STOP_DISTANCE": 35.0,       # Quick stop buffer for cyclists
+            "FOLLOWING_DISTANCE_MULTIPLIER": 1.7,  # Increased by 10% (1.5 * 1.1 = 1.65 ≈ 1.7)
+            "MIN_FOLLOWING_DISTANCE": 55.0,        # Increased by 10% (50 * 1.1 = 55)
+            "SEARCH_DISTANCE": 110.0,              # Increased by 10% (100 * 1.1 = 110)
+            "EMERGENCY_STOP_DISTANCE": 39.0,       # Increased by 10% (35 * 1.1 = 38.5 ≈ 39)
         },
         "PEDESTRIAN": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 0.8,  # Pedestrians can get closest
-            "MIN_FOLLOWING_DISTANCE": 25.0,        # Pedestrian personal space
-            "SEARCH_DISTANCE": 80.0,               # Short look-ahead
-            "EMERGENCY_STOP_DISTANCE": 20.0,       # Immediate stop capability
+            "FOLLOWING_DISTANCE_MULTIPLIER": 0.9,  # Increased by 10% (0.8 * 1.1 = 0.88 ≈ 0.9)
+            "MIN_FOLLOWING_DISTANCE": 28.0,        # Increased by 10% (25 * 1.1 = 27.5 ≈ 28)
+            "SEARCH_DISTANCE": 88.0,               # Increased by 10% (80 * 1.1 = 88)
+            "EMERGENCY_STOP_DISTANCE": 22.0,       # Increased by 10% (20 * 1.1 = 22)
         },
         # Global fallback settings for unknown vehicle types
         "DEFAULT": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,
-            "MIN_FOLLOWING_DISTANCE": 60.0,
-            "SEARCH_DISTANCE": 150.0,
-            "EMERGENCY_STOP_DISTANCE": 25.0,
+            "FOLLOWING_DISTANCE_MULTIPLIER": 1.7,  # Increased by 10% (1.5 * 1.1 = 1.65 ≈ 1.7)
+            "MIN_FOLLOWING_DISTANCE": 66.0,        # Increased by 10% (60 * 1.1 = 66)
+            "SEARCH_DISTANCE": 165.0,              # Increased by 10% (150 * 1.1 = 165)
+            "EMERGENCY_STOP_DISTANCE": 28.0,       # Increased by 10% (25 * 1.1 = 27.5 ≈ 28)
         }
     }
 

@@ -44,7 +44,7 @@ class Truck(RoadUser):
         can_cross_ok: Callable[[], bool] = lambda: True,
         cab_color: Tuple[int, int, int] = BLUE,
         trailer_color: Tuple[int, int, int] = WHITE,
-        scale: float = 0.3,
+        scale: float = 0.45,  # Increased from 0.3 to 0.45 (1.5x bigger)
     ):
         speed = speed_px_s if speed_px_s is not None else config.SPEEDS.get("TRUCK", 80.0)
         super().__init__(path_px, speed, can_cross_ok)
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     clock = pygame.time.Clock()
 
     path = [(50, HEIGHT // 2), (WIDTH - 50, HEIGHT // 2)]
-    truck = Truck(path, speed_px_s=config.SPEEDS.get("TRUCK", 80.0), scale=0.4)
+    truck = Truck(path, speed_px_s=config.SPEEDS.get("TRUCK", 80.0), scale=0.6)  # Updated to match new sizing
 
     running = True
     while running:

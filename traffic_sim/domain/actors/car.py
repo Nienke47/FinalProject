@@ -40,16 +40,16 @@ class Car(RoadUser):
         self,
         path_px: List[Vec2],
         speed_px_s: float = config.SPEEDS["CAR"],  # use config speed
-        width: int = 50,
-        length: int = 80,
+        car_width: int = 40,  # Reduced from 50 to 40 (20% smaller: 50 * 0.8 = 40)
+        car_length: int = 64, # Reduced from 80 to 64 (20% smaller: 80 * 0.8 = 64)
         color=RED,
         roof_color=BLUE,
         can_cross_ok: Callable[[], bool] = lambda: True,
     ):
         super().__init__(path_px, speed_px_s, can_cross_ok)
         # keep same naming as previous file for visuals
-        self.width = float(width)
-        self.length = float(length)
+        self.width = float(car_width)
+        self.length = float(car_length)
         self.color = color
         self.roof_color = roof_color
         self._car_surf = self._create_surface()
@@ -138,8 +138,8 @@ class Car(RoadUser):
         new = Car(
             list(self.path),
             speed_px_s=self.speed,
-            width=int(self.width),
-            length=int(self.length),
+            car_width=int(self.width),
+            car_length=int(self.length),
             color=self.color,
             roof_color=self.roof_color,
             can_cross_ok=self._can_cross,
@@ -158,7 +158,7 @@ if __name__ == "__main__":
 
     # simple two-point path: start center, move to the right
     path = [(50, 100), (50, 500), (800, 500), (800, 100)]
-    car = Car(path, speed_px_s=120.0, width=50, length=80)
+    car = Car(path, speed_px_s=120.0, car_width=40, car_length=64)  # Updated to match new default size
 
     # Create a car instance
     car = Car(path, speed_px_s=120.0)  # Add speed to see movement
