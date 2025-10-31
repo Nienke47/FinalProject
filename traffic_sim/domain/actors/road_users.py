@@ -17,6 +17,27 @@ class RoadUser:
         self.last_rotation = 0.0  # in graden, voor tekenwerk e.d.
         self.total_time = 0.0  # Track total time for statistics
         self.stopped_time = 0.0  # Track how long vehicle has been stopped
+        self.completion_reason = "unknown"  # Track why vehicle was marked as done
+
+    def get_vehicle_type(self) -> str:
+        """Get the vehicle type name for configuration lookup."""
+        return type(self).__name__.upper()
+
+    def get_collision_settings(self) -> dict:
+        """Get vehicle-specific collision settings from configuration."""
+        try:
+            from ...configuration import Config
+        except ImportError:
+            from traffic_sim.configuration import Config
+        
+        config = Config()
+        vehicle_type = self.get_vehicle_type()
+        
+        # Try to get vehicle-specific settings, fall back to default
+        if vehicle_type in config.VEHICLE_SPACING:
+            return config.VEHICLE_SPACING[vehicle_type]
+        else:
+            return config.VEHICLE_SPACING["DEFAULT"]
 
     def get_rotation(self) -> float:
         """Calculate the angle in degrees the actor should face based on movement direction."""
@@ -48,13 +69,19 @@ class RoadUser:
         return angle
 
     def _guess_cross_index(self) -> Optional[int]:
-        """Find the waypoint just before the intersection (stop line)"""
+        """Find the waypoint just before the intersection (stop line)
+        
+        Traffic light behavior:
+        - Vehicles obey traffic lights before reaching path point 2 (index 2)
+        - After passing path point 2, vehicles ignore traffic lights and continue
+        """
         if len(self.path) < 3: 
             return None
         
         # The stop line should be at waypoint index 1 (second point in path)
         # This is typically positioned just before the intersection
         # Cars will wait at this point when approaching if the light is red
+        # But only BEFORE they pass path point 2 (index 2)
         return 1
 
     def _check_collision_ahead(self, target_pos, safe_distance=60):
@@ -128,11 +155,11 @@ class RoadUser:
             return False
         
         if collision_radius is None:
-            # Get vehicle size for collision radius
+            # Get vehicle size for collision radius (reduced for closer spacing)
             if hasattr(self, 'width') and hasattr(self, 'length'):
-                collision_radius = max(getattr(self, 'width', 50), getattr(self, 'length', 80)) * 0.7
+                collision_radius = max(getattr(self, 'width', 50), getattr(self, 'length', 80)) * 0.4  # Reduced from 0.7 to 0.4
             else:
-                collision_radius = 25  # Default for pedestrians/cyclists
+                collision_radius = 15  # Reduced from 25 to 15 for pedestrians/cyclists
         
         pos_x, pos_y = position
         
@@ -143,14 +170,14 @@ class RoadUser:
             other_x, other_y = other.pos
             distance = math.hypot(other_x - pos_x, other_y - pos_y)
             
-            # Get other vehicle's collision radius
+            # Get other vehicle's collision radius (reduced for closer spacing)
             if hasattr(other, 'width') and hasattr(other, 'length'):
-                other_radius = max(getattr(other, 'width', 50), getattr(other, 'length', 80)) * 0.7
+                other_radius = max(getattr(other, 'width', 50), getattr(other, 'length', 80)) * 0.4  # Reduced from 0.7 to 0.4
             else:
-                other_radius = 25
+                other_radius = 15  # Reduced from 25 to 15
             
-            # Check if collision would occur
-            min_safe_distance = collision_radius + other_radius + 10  # Extra 10px safety margin
+            # Check if collision would occur (reduced safety margin)
+            min_safe_distance = collision_radius + other_radius + 5  # Reduced from 10px to 5px safety margin
             
             if distance < min_safe_distance:
                 return True
@@ -171,13 +198,8 @@ class RoadUser:
         except ImportError:
             from traffic_sim.services.physics import find_vehicle_ahead, calculate_safe_following_speed
         
-        # Import config
-        try:
-            from ...configuration import Config
-        except ImportError:
-            from traffic_sim.configuration import Config
-        
-        config = Config()
+        # Get vehicle-specific collision settings
+        collision_settings = self.get_collision_settings()
         
         # Find vehicle ahead on same path
         result = find_vehicle_ahead(self, self.all_agents)
@@ -187,21 +209,57 @@ class RoadUser:
         
         vehicle_ahead, distance_to_ahead = result
         
-        # Calculate different following distances based on vehicle type
+        # Calculate following distance using vehicle-specific settings
         if hasattr(self, 'width') and hasattr(self, 'length'):
-            # For cars and trucks, base following distance on vehicle size
+            # For vehicles with size, base following distance on vehicle size and type-specific multiplier
             vehicle_size = max(getattr(self, 'width', 50), getattr(self, 'length', 80))
-            desired_distance = vehicle_size * config.VEHICLE_SPACING["FOLLOWING_DISTANCE_MULTIPLIER"]
+            desired_distance = vehicle_size * collision_settings["FOLLOWING_DISTANCE_MULTIPLIER"]
         else:
-            # For pedestrians and cyclists, use minimum following distance
-            desired_distance = config.VEHICLE_SPACING["MIN_FOLLOWING_DISTANCE"]
+            # For vehicles without size info, use type-specific minimum following distance
+            desired_distance = collision_settings["MIN_FOLLOWING_DISTANCE"]
         
-        # Ensure minimum following distance
-        desired_distance = max(desired_distance, config.VEHICLE_SPACING["MIN_FOLLOWING_DISTANCE"])
+        # Ensure minimum following distance for this vehicle type
+        desired_distance = max(desired_distance, collision_settings["MIN_FOLLOWING_DISTANCE"])
         
         return calculate_safe_following_speed(
             self, vehicle_ahead, distance_to_ahead, desired_distance
         )
+
+    def _is_outside_frame(self) -> bool:
+        """
+        Check if the vehicle is outside the visible frame and should be despawned.
+        Adds a buffer zone so vehicles don't disappear abruptly at the screen edge.
+        """
+        try:
+            from ...configuration import Config
+        except ImportError:
+            from traffic_sim.configuration import Config
+        
+        config = Config()
+        
+        # Check if frame despawn is enabled
+        if not config.FRAME_BOUNDARY["ENABLE_FRAME_DESPAWN"]:
+            return False
+        
+        # Get vehicle dimensions for buffer calculation
+        if hasattr(self, 'width') and hasattr(self, 'length'):
+            vehicle_size = max(getattr(self, 'width', 50), getattr(self, 'length', 80))
+        else:
+            vehicle_size = 50  # Default size for pedestrians/cyclists
+        
+        # Add buffer zone (vehicle size + configurable margin) so vehicles don't suddenly disappear
+        buffer = vehicle_size + config.FRAME_BOUNDARY["DESPAWN_BUFFER"]
+        
+        x, y = self.pos
+        
+        # Check if vehicle is outside frame boundaries + buffer
+        if (x < -buffer or                    # Left of screen
+            x > config.WIDTH + buffer or      # Right of screen  
+            y < -buffer or                    # Above screen
+            y > config.HEIGHT + buffer):      # Below screen
+            return True
+        
+        return False
 
     def update(self, dt: float):
         if self.done:
@@ -212,25 +270,60 @@ class RoadUser:
         
         # Store initial position to check if vehicle moved
         initial_pos = self.pos.copy()
+        
+        # Check if vehicle is outside frame boundaries and should despawn
+        if self._is_outside_frame():
+            # Optional debug logging (can be enabled in debug mode)
+            try:
+                from ...configuration import Config
+            except ImportError:
+                from traffic_sim.configuration import Config
+            
+            config = Config()
+            if getattr(config, 'DEBUG_MODE', False):
+                print(f"Vehicle {type(self).__name__} despawned at position ({self.pos[0]:.1f}, {self.pos[1]:.1f}) - left frame")
+            
+            self.completion_reason = "frame_exit"
+            self.done = True
+            return
 
         # Voor de "kruispunt" drempel: check stoplicht via callback
         # Check if we're approaching or at the stop line waypoint
+        # Only obey traffic lights BEFORE moving significantly past the stop line
+        # Once vehicles move past the stop line by a certain distance, ignore traffic lights
         if self.cross_index is not None and self.i <= self.cross_index:
-            # If we're before the stop line, check if we should stop
-            if not self._can_cross():
-                # If we're at the stop line waypoint itself, don't move forward
-                if self.i == self.cross_index:
-                    return  # wachten voor rood
-                # If we're approaching the stop line, stop when we get close
-                elif self.i == self.cross_index - 1:
-                    if self.i + 1 < len(self.path):
-                        target = self.path[self.i + 1]  # This is the stop line waypoint
-                        dx = target[0] - self.pos[0]
-                        dy = target[1] - self.pos[1]
-                        dist = math.hypot(dx, dy)
-                        # Stop if we're within 15 pixels of the stop line
-                        if dist < 5:
-                            return  # wachten voor rood
+            # Check if we've moved significantly past the stop line (commitment point)
+            stop_line_pos = self.path[self.cross_index]
+            
+            # Calculate distance moved past the stop line
+            # For vertical movement (north-south), check Y distance
+            # For horizontal movement (east-west), check X distance
+            if abs(stop_line_pos[0] - self.path[0][0]) < abs(stop_line_pos[1] - self.path[0][1]):
+                # Vertical movement - check Y distance
+                distance_past_stop = abs(self.pos[1] - stop_line_pos[1])
+            else:
+                # Horizontal movement - check X distance  
+                distance_past_stop = abs(self.pos[0] - stop_line_pos[0])
+            
+            # Only check traffic lights if we haven't moved more than 30 pixels past stop line
+            commitment_distance = 30  # pixels
+            if distance_past_stop <= commitment_distance:
+                if not self._can_cross():
+                    # If we're at the stop line waypoint itself, don't move forward
+                    if self.i == self.cross_index:
+                        return  # wachten voor rood
+                    # If we're approaching the stop line, stop when we get close
+                    elif self.i == self.cross_index - 1:
+                        if self.i + 1 < len(self.path):
+                            target = self.path[self.i + 1]  # This is the stop line waypoint
+                            dx = target[0] - self.pos[0]
+                            dy = target[1] - self.pos[1]
+                            dist = math.hypot(dx, dy)
+                            # Stop if we're within 15 pixels of the stop line
+                            if dist < 5:
+                                return  # wachten voor rood
+        
+        # After path point 2 (index 2), vehicles ignore traffic lights and continue moving
 
         # Check if we've gone past all waypoints
         if self.i >= len(self.path) - 1:
@@ -239,15 +332,12 @@ class RoadUser:
                 dx, dy = self._exit_direction
                 self.pos[0] += dx * self.speed * dt
                 self.pos[1] += dy * self.speed * dt
-                # Track distance traveled past last waypoint
-                if not hasattr(self, '_exit_distance'):
-                    self._exit_distance = 0.0
-                self._exit_distance += self.speed * dt
-                # Despawn after traveling far enough
-                if self._exit_distance > 100:  # 100 pixels past last waypoint
-                    self.done = True
+                
+                # Check if vehicle has left the frame (will be caught by _is_outside_frame check above)
+                # No need to track distance anymore - frame boundary check handles despawning
             else:
-                # No exit direction set, mark as done
+                # No exit direction set, mark as done immediately
+                self.completion_reason = "path_completed"
                 self.done = True
             return
 
@@ -296,14 +386,9 @@ class RoadUser:
             vy = (dy / dist) * adjusted_speed
             new_pos = [self.pos[0] + vx * dt, self.pos[1] + vy * dt]
             
-            # Get config for safety distances
-            try:
-                from ...configuration import Config
-            except ImportError:
-                from traffic_sim.configuration import Config
-            
-            config = Config()
-            emergency_distance = config.VEHICLE_SPACING["EMERGENCY_STOP_DISTANCE"]
+            # Get vehicle-specific safety distances
+            collision_settings = self.get_collision_settings()
+            emergency_distance = collision_settings["EMERGENCY_STOP_DISTANCE"]
             
             # Multi-layer collision prevention:
             # 1. Check strict collision (vehicle overlap)

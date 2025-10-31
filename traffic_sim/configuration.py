@@ -34,10 +34,10 @@ class Config:
 
     # Collision detection
     COLLISION_RADIUS = {
-        "CAR": 5,
-        "TRUCK": 5,
-        "CYCLIST": 5,
-        "PEDESTRIAN": 5,
+        "CAR": 20,
+        "TRUCK": 10,
+        "CYCLIST":5,
+        "PEDESTRIAN": 2,
         "BOAT": 5
     }
 
@@ -45,12 +45,45 @@ class Config:
     INTERSECTION_POINT = (WIDTH // 2, HEIGHT // 2)
     ROAD_WIDTH = 60
 
-    # Vehicle spacing settings
+    # Vehicle-specific spacing settings - each vehicle type has its own collision behavior
     VEHICLE_SPACING = {
-        "FOLLOWING_DISTANCE_MULTIPLIER": 2.0,  # Multiple of vehicle size for following distance (increased)
-        "MIN_FOLLOWING_DISTANCE": 80.0,        # Minimum following distance in pixels (increased)
-        "SEARCH_DISTANCE": 250.0,              # How far ahead to look for vehicles (increased)
-        "EMERGENCY_STOP_DISTANCE": 50.0,       # Distance for emergency collision avoidance (increased)
+        "CAR": {
+            "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,  # Cars maintain moderate following distance
+            "MIN_FOLLOWING_DISTANCE": 50.0,        # Minimum distance for cars
+            "SEARCH_DISTANCE": 150.0,              # How far ahead cars look
+            "EMERGENCY_STOP_DISTANCE": 30.0,       # Emergency braking distance for cars
+        },
+        "TRUCK": {
+            "FOLLOWING_DISTANCE_MULTIPLIER": 2.0,  # Trucks need more space due to size
+            "MIN_FOLLOWING_DISTANCE": 80.0,        # Larger minimum distance for trucks
+            "SEARCH_DISTANCE": 200.0,              # Trucks look further ahead
+            "EMERGENCY_STOP_DISTANCE": 50.0,       # Longer braking distance for trucks
+        },
+        "CYCLIST": {
+            "FOLLOWING_DISTANCE_MULTIPLIER": 1.0,  # Cyclists can follow closer
+            "MIN_FOLLOWING_DISTANCE": 30.0,        # Smaller minimum distance
+            "SEARCH_DISTANCE": 100.0,              # Shorter look-ahead distance
+            "EMERGENCY_STOP_DISTANCE": 20.0,       # Quick stopping for cyclists
+        },
+        "PEDESTRIAN": {
+            "FOLLOWING_DISTANCE_MULTIPLIER": 0.8,  # Pedestrians can get very close
+            "MIN_FOLLOWING_DISTANCE": 20.0,        # Very small minimum distance
+            "SEARCH_DISTANCE": 80.0,               # Short look-ahead
+            "EMERGENCY_STOP_DISTANCE": 15.0,       # Immediate stopping capability
+        },
+        # Global fallback settings for unknown vehicle types
+        "DEFAULT": {
+            "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,
+            "MIN_FOLLOWING_DISTANCE": 60.0,
+            "SEARCH_DISTANCE": 150.0,
+            "EMERGENCY_STOP_DISTANCE": 25.0,
+        }
+    }
+
+    # Frame boundary settings for vehicle despawning
+    FRAME_BOUNDARY = {
+        "DESPAWN_BUFFER": 50,                   # Extra pixels outside frame before despawning
+        "ENABLE_FRAME_DESPAWN": True,           # Enable automatic despawning when leaving frame
     }
 
     # Debug settings

@@ -209,7 +209,7 @@ class App:
             return True
         return False
     
-    def _is_safe_spawn_position(self, new_agent, min_spawn_distance=120):
+    def _is_safe_spawn_position(self, new_agent, min_spawn_distance=60):
         """
         Check if it's safe to spawn a new agent at its starting position.
         Returns True if safe, False if too close to existing vehicles.
@@ -239,8 +239,8 @@ class App:
             else:
                 existing_size = 25
             
-            # Calculate required safe distance based on both vehicle sizes
-            required_distance = max(min_spawn_distance, (new_agent_size + existing_size) * 1.5)
+            # Calculate required safe distance based on both vehicle sizes (reduced multiplier)
+            required_distance = max(min_spawn_distance, (new_agent_size + existing_size) * 1.0)  # Reduced from 1.5 to 1.0
             
             if distance < required_distance:
                 return False  # Too close to spawn safely
@@ -252,7 +252,7 @@ class App:
         Emergency function to separate vehicles that are too close to each other.
         This should rarely be needed if collision prevention is working correctly.
         """
-        min_separation = 60.0  # Minimum distance between vehicle centers
+        min_separation = 30.0  # Minimum distance between vehicle centers (reduced for closer spacing)
         
         for i in range(len(self.agents)):
             for j in range(i + 1, len(self.agents)):
@@ -293,16 +293,14 @@ class App:
         print("Spawn counts by type:")
         for agent_type, count in stats['spawns'].items():
             print(f"  {agent_type}: {count}")
-        print("Average completion times:")
-        for agent_type, avg_time in stats['average_completion_times'].items():
-            print(f"  {agent_type}: {avg_time:.1f}s")
-        print("Traffic light wait times:")
-        print(f"  North-South: {stats['average_wait_times']['NS']:.1f}s")
-        print(f"  East-West: {stats['average_wait_times']['EW']:.1f}s")
+        print("Path completions by type:")
+        for agent_type, count in stats['completions'].items():
+            print(f"  {agent_type}: {count}")
+        print("Frame exits by type:")
+        for agent_type, count in stats['frame_exits'].items():
+            print(f"  {agent_type}: {count}")
         print(f"Total collisions: {stats['collisions']}")
-        print("Throughput (completions per minute):")
-        for agent_type, rate in stats['throughput'].items():
-            print(f"  {agent_type}: {rate:.1f}/min")
+        print(f"Vehicles per minute: {stats['vehicles_per_minute']:.1f}")
         print("============================\n")
 
     def run(self):
@@ -365,10 +363,15 @@ class App:
                 a.update(dt)
                 if getattr(a, "done", False):
                     self.agents.remove(a)
-                    self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
+                    # Record completion based on the reason
+                    completion_reason = getattr(a, "completion_reason", "unknown")
+                    if completion_reason == "frame_exit":
+                        self.stats.record_frame_exit(type(a).__name__, getattr(a, "total_time", 0.0))
+                    else:
+                        self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
 
-            # Check collisions with stricter threshold
-            collisions = check_collisions(self.agents, min_dist=10.0)  # Reduced from 15.0 to 10.0
+            # Check collisions with smaller threshold
+            collisions = check_collisions(self.agents, min_dist=5.0)  # Reduced to allow closer spacing
             if collisions:
                 self.stats.record_collision()
                 # Log collision details for debugging

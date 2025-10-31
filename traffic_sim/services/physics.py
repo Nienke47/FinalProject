@@ -7,7 +7,7 @@ from ..domain.actors.road_users import RoadUser
 try:
     from ..configuration import Config
 except ImportError:
-    from traffic_sim.configuration import Config
+    from trafficsimulation.configuration import Config
 
 config = Config()
 
@@ -35,7 +35,13 @@ def find_vehicle_ahead(current_vehicle: RoadUser, all_vehicles: List[RoadUser],
         Tuple of (vehicle_ahead, distance_to_vehicle) or None if no vehicle found
     """
     if search_distance is None:
-        search_distance = config.VEHICLE_SPACING["SEARCH_DISTANCE"]
+        # Get vehicle-specific search distance
+        if hasattr(current_vehicle, 'get_collision_settings'):
+            vehicle_settings = current_vehicle.get_collision_settings()
+            search_distance = vehicle_settings["SEARCH_DISTANCE"]
+        else:
+            # Fallback to default settings
+            search_distance = config.VEHICLE_SPACING["DEFAULT"]["SEARCH_DISTANCE"]
     
     if not hasattr(current_vehicle, 'path') or len(current_vehicle.path) < 2:
         return None
@@ -115,7 +121,13 @@ def calculate_safe_following_speed(current_vehicle: RoadUser, vehicle_ahead: Roa
         Adjusted speed factor (0.0 to 1.0) to multiply with normal speed
     """
     if desired_following_distance is None:
-        desired_following_distance = config.VEHICLE_SPACING["MIN_FOLLOWING_DISTANCE"]
+        # Get vehicle-specific minimum following distance
+        if hasattr(current_vehicle, 'get_collision_settings'):
+            vehicle_settings = current_vehicle.get_collision_settings()
+            desired_following_distance = vehicle_settings["MIN_FOLLOWING_DISTANCE"]
+        else:
+            # Fallback to default settings
+            desired_following_distance = config.VEHICLE_SPACING["DEFAULT"]["MIN_FOLLOWING_DISTANCE"]
     # If we're too far, go full speed
     if distance_to_ahead > desired_following_distance * 2:
         return 1.0

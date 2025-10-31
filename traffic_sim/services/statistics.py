@@ -98,6 +98,8 @@ class SimulationStats:
             'vehicles_per_minute': (self.vehicles_served * 60) / runtime if runtime > 0 else 0,
             'flow_stats': self.flow_stats,
             'spawns': self.spawns,
+            'completions': self.completions,
+            'frame_exits': getattr(self, 'frame_exits', {}),
             'wait_times_by_type': {
                 actor_type: sum(times) / len(times) if times else 0
                 for actor_type, times in self.wait_times.items()
@@ -121,6 +123,23 @@ class SimulationStats:
             pass
         # Treat a completion as a served vehicle for throughput metrics
         self.vehicles_served += 1
+    
+    def record_frame_exit(self, actor_type: str, total_time: float = 0.0) -> None:
+        """Record that an actor left the simulation by exiting the frame.
+        
+        This is tracked separately from normal completions to distinguish
+        between vehicles that completed their path vs. those that left the visible area.
+        """
+        t = (actor_type or "").lower()
+        
+        # Initialize frame_exits dict if it doesn't exist
+        if not hasattr(self, 'frame_exits'):
+            self.frame_exits: Dict[str, int] = {}
+        
+        self.frame_exits[t] = self.frame_exits.get(t, 0) + 1
+        
+        # Also record as completion for throughput metrics
+        self.record_completion(actor_type, total_time)
     
     def render_stats_overlay(self, screen, font, pos=(10, 10), color=(255, 255, 255)):
         """Render statistics as an overlay on the simulation"""
