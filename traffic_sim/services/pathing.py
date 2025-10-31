@@ -20,21 +20,21 @@ CARS_NS_LEFT: List[Point] = [
 # East-West routes
 CARS_EW_RIGHT: List[Point] = [
     # Straight through - extend beyond screen edges
-    (-0.10, 0.55), (0.20, 0.55), (1.10, 0.55)
+    (-0.10, 0.55), (0.25, 0.55), (1.10, 0.55)
 ]
 CARS_EW_LEFT: List[Point] = [
     # Turn left from west to south - extend exit point
-    (-0.10, 0.55), (0.20, 0.55), (0.45, 0.55), (0.45, 1.10)
+    (-0.10, 0.55), (0.25, 0.55), (0.46, 0.55), (0.46, 1.10)
 ]
 CARS_EW_TURN_RIGHT: List[Point] = [
     # Turn right from west to north - extend exit point
-    (-0.10, 0.55), (0.20, 0.55), (0.54, 0.55), (0.54, -0.10)
+    (-0.10, 0.55), (0.25, 0.55), (0.54, 0.55), (0.54, -0.10)
 ]
 
 # Fietsers (rood) en voetgangers (bruin) iets opzij van het midden:
 BIKES_NS_UP: List[Point] = [
     # cyclists stay closer to the cars but still on the right side - extend beyond edges
-    (0.60, 1.10), (0.60, 0.80), (0.60, -0.10)
+    (0.59, 1.10), (0.59, 0.80), (0.59, -0.10)
 ]
 PEDS_EW_RIGHT: List[Point] = [
     # pedestrians on the grass further from the road (north of sidewalk) - extend beyond edges
