@@ -32,44 +32,45 @@ class Config:
         "BOAT": 50.0
     }
 
-    # Collision detection
+    # Collision detection - Physical boundaries to prevent touching
     COLLISION_RADIUS = {
-        "CAR": 20,
-        "TRUCK": 10,
-        "CYCLIST":5,
-        "PEDESTRIAN": 2,
-        "BOAT": 5
+        "CAR": 25,        # Increased collision radius for cars
+        "TRUCK": 30,      # Large collision radius for trucks  
+        "CYCLIST": 15,    # Medium collision radius for cyclists
+        "PEDESTRIAN": 10, # Small but visible collision radius for pedestrians
+        "BOAT": 20        # Boat collision radius
     }
 
     # Path settings
     INTERSECTION_POINT = (WIDTH // 2, HEIGHT // 2)
     ROAD_WIDTH = 60
 
-    # Vehicle-specific spacing settings - each vehicle type has its own collision behavior
+    # Vehicle-specific spacing settings - STRICT NO-TOUCH POLICY
+    # All vehicles maintain safe distances to prevent any contact/overlap
     VEHICLE_SPACING = {
         "CAR": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,  # Cars maintain moderate following distance
-            "MIN_FOLLOWING_DISTANCE": 50.0,        # Minimum distance for cars
+            "FOLLOWING_DISTANCE_MULTIPLIER": 4,  # Cars maintain moderate following distance
+            "MIN_FOLLOWING_DISTANCE": 60.0,        # Safe minimum distance - no touching
             "SEARCH_DISTANCE": 150.0,              # How far ahead cars look
-            "EMERGENCY_STOP_DISTANCE": 30.0,       # Emergency braking distance for cars
+            "EMERGENCY_STOP_DISTANCE": 45.0,       # Emergency stop buffer - prevents contact
         },
         "TRUCK": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 2.0,  # Trucks need more space due to size
-            "MIN_FOLLOWING_DISTANCE": 80.0,        # Larger minimum distance for trucks
+            "FOLLOWING_DISTANCE_MULTIPLIER": 5.0,  # Trucks need more space due to size
+            "MIN_FOLLOWING_DISTANCE": 80.0,        # Large vehicle safe distance
             "SEARCH_DISTANCE": 200.0,              # Trucks look further ahead
-            "EMERGENCY_STOP_DISTANCE": 50.0,       # Longer braking distance for trucks
+            "EMERGENCY_STOP_DISTANCE": 65.0,       # Extra large emergency buffer
         },
         "CYCLIST": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 1.0,  # Cyclists can follow closer
-            "MIN_FOLLOWING_DISTANCE": 30.0,        # Smaller minimum distance
+            "FOLLOWING_DISTANCE_MULTIPLIER": 1.5,  # Cyclists can follow closer
+            "MIN_FOLLOWING_DISTANCE": 40.0,        # Small vehicle safe distance
             "SEARCH_DISTANCE": 100.0,              # Shorter look-ahead distance
-            "EMERGENCY_STOP_DISTANCE": 20.0,       # Quick stopping for cyclists
+            "EMERGENCY_STOP_DISTANCE": 35.0,       # Quick stop buffer for cyclists
         },
         "PEDESTRIAN": {
-            "FOLLOWING_DISTANCE_MULTIPLIER": 0.8,  # Pedestrians can get very close
-            "MIN_FOLLOWING_DISTANCE": 20.0,        # Very small minimum distance
+            "FOLLOWING_DISTANCE_MULTIPLIER": 0.8,  # Pedestrians can get closest
+            "MIN_FOLLOWING_DISTANCE": 25.0,        # Pedestrian personal space
             "SEARCH_DISTANCE": 80.0,               # Short look-ahead
-            "EMERGENCY_STOP_DISTANCE": 15.0,       # Immediate stopping capability
+            "EMERGENCY_STOP_DISTANCE": 20.0,       # Immediate stop capability
         },
         # Global fallback settings for unknown vehicle types
         "DEFAULT": {

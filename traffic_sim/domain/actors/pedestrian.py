@@ -41,7 +41,7 @@ def draw_pedestrian(screen, x, y, scale=1):
 try:
     from .road_users import RoadUser
 except Exception:
-    from trafficsimulation.domain.actors.road_users import RoadUser
+    from traffic_sim.domain.actors.road_users import RoadUser
 
 Vec2 = Tuple[float, float]
 

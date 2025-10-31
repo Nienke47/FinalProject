@@ -309,19 +309,57 @@ class RoadUser:
             commitment_distance = 30  # pixels
             if distance_past_stop <= commitment_distance:
                 if not self._can_cross():
-                    # If we're at the stop line waypoint itself, don't move forward
+                    # IMPORTANT: When stopping for red lights, also check for vehicles ahead!
+                    # Don't just stop at the stop line if there are other vehicles there
+                    
+                    # Calculate where we want to stop (stop line or behind other vehicles)
+                    desired_stop_pos = None
+                    
                     if self.i == self.cross_index:
-                        return  # wachten voor rood
-                    # If we're approaching the stop line, stop when we get close
+                        # We're at the stop line - check if there's a vehicle ahead at the stop line
+                        stop_line_pos = self.path[self.cross_index]
+                        
+                        # Look for vehicles ahead that are also stopped at the traffic light
+                        collision_settings = self.get_collision_settings()
+                        safe_distance = collision_settings["MIN_FOLLOWING_DISTANCE"]
+                        
+                        # Check if we can safely stay at current position without hitting vehicles ahead
+                        if self._check_collision_ahead(self.pos, safe_distance=safe_distance):
+                            # There's a vehicle too close ahead - we can't stay here
+                            return  # Don't move forward, stay back from the vehicle ahead
+                        else:
+                            # Safe to stay at stop line
+                            return  # wachten voor rood at stop line
+                            
                     elif self.i == self.cross_index - 1:
+                        # We're approaching the stop line
                         if self.i + 1 < len(self.path):
                             target = self.path[self.i + 1]  # This is the stop line waypoint
                             dx = target[0] - self.pos[0]
                             dy = target[1] - self.pos[1]
                             dist = math.hypot(dx, dy)
-                            # Stop if we're within 15 pixels of the stop line
+                            
+                            # Check if we should stop before reaching the stop line due to vehicles ahead
+                            collision_settings = self.get_collision_settings()
+                            safe_distance = collision_settings["MIN_FOLLOWING_DISTANCE"]
+                            
+                            # Calculate our position if we move toward stop line
+                            if dist > 0:
+                                direction_x = dx / dist
+                                direction_y = dy / dist
+                                # Check a position slightly ahead to see if there are vehicles
+                                check_pos = [
+                                    self.pos[0] + direction_x * min(10, dist),
+                                    self.pos[1] + direction_y * min(10, dist)
+                                ]
+                                
+                                if self._check_collision_ahead(check_pos, safe_distance=safe_distance):
+                                    # There's a vehicle ahead - stop here, don't continue to stop line
+                                    return  # wachten voor rood behind other vehicle
+                            
+                            # Stop if we're within 5 pixels of the stop line and no vehicle ahead
                             if dist < 5:
-                                return  # wachten voor rood
+                                return  # wachten voor rood at stop line
         
         # After path point 2 (index 2), vehicles ignore traffic lights and continue moving
 

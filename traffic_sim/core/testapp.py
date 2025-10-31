@@ -370,12 +370,12 @@ class App:
                     else:
                         self.stats.record_completion(type(a).__name__, getattr(a, "total_time", 0.0))
 
-            # Check collisions with smaller threshold
-            collisions = check_collisions(self.agents, min_dist=5.0)  # Reduced to allow closer spacing
+            # Check collisions with strict no-touch policy
+            collisions = check_collisions(self.agents, min_dist=35.0)  # Increased to prevent any touching
             if collisions:
                 self.stats.record_collision()
                 # Log collision details for debugging
-                print(f"WARNING: Collision detected! Total agents: {len(self.agents)}")
+                print(f"WARNING: Vehicles too close! Total agents: {len(self.agents)}")
                 # Attempt to separate colliding vehicles
                 self._separate_colliding_vehicles()
 
