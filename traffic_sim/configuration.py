@@ -35,7 +35,7 @@ class Config:
     # Collision detection - Physical boundaries to prevent touching
     COLLISION_RADIUS = {
         "CAR": 22,        # Increased by 10% (20 * 1.1 = 22)
-        "TRUCK": 41,      # Increased by 1.25x (33 * 1.25 = 41) - bigger vertical collision
+        "TRUCK": 35,      # Reduced from 41 to make truck hitbox smaller
         "CYCLIST": 12,    # Reduced collision width for cyclists (was 17)
         "PEDESTRIAN": 11, # Increased by 10% (10 * 1.1 = 11)
         "BOAT": 22        # Increased by 10% (20 * 1.1 = 22)
