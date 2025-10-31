@@ -152,11 +152,7 @@ class App:
             interval_s=5.0, random_offset=1.0, max_count=30
         )
 
-        # East-West bike spawner (multiple paths) - can spawn during EW car or pedestrian phases
-        def ew_bike_can_cross():
-            # Allow EW bikes to cross during EW car phase OR EW pedestrian phase
-            return self.ctrl.can_cars_cross_ew() or self.ctrl.can_ped_cross_ew()
-        
+        # East-West bike spawner (multiple paths) - follows pedestrian traffic lights
         self.bike_ew_spawner = Spawner(
             factory=lambda: Cyclist(
                 random.choice([
@@ -165,7 +161,7 @@ class App:
                     self.bikes_ew_turn_right_px
                 ]),
                 speed_px_s=90,
-                can_cross_ok=ew_bike_can_cross
+                can_cross_ok=self.ctrl.can_ped_cross_ew  # Follow EW pedestrian traffic lights only
             ),
             interval_s=4.0, random_offset=1.0, max_count=25  # Increased frequency: 4s ± 1s
         )
@@ -197,14 +193,15 @@ class App:
             interval_s=15.0, random_offset=4.0, max_count=10  # Less frequent than cars
         )
 
-        # East-West pedestrian spawner - can cross during EW car or pedestrian phases
+        # East-West pedestrian spawner - only cross during EW pedestrian phase
         def ew_ped_can_cross():
-            # Allow EW pedestrians to cross during EW car phase OR EW pedestrian phase
-            return self.ctrl.can_cars_cross_ew() or self.ctrl.can_ped_cross_ew()
+            # Allow EW pedestrians to cross ONLY during EW pedestrian phase
+            # (They will continue crossing if already on intersection due to RoadUser logic)
+            return self.ctrl.can_ped_cross_ew()
         
         self.ped_ew_spawner = Spawner(
             factory=lambda: Pedestrian(self.peds_ew_right_px, speed_px_s=70, can_cross_ok=ew_ped_can_cross),
-            interval_s=4.0, random_offset=1.0, max_count=40
+            interval_s=8.0, random_offset=2.0, max_count=20  # Less frequent: 8s ± 2s (6-10s), fewer max
         )
 
         # ====== TRAFFIC LIGHTS ======
@@ -513,12 +510,12 @@ class App:
         bridge_thickness = road_width * 1.2
         bridge_y = self.size[1] / 2 - bridge_thickness / 2
 
-        # Draw bridge crossing the river
+        # Draw main road bridge crossing the river
         bridge_color = (80, 80, 80)  # Same as road color
         pg.draw.rect(self.screen, bridge_color,
                      (river_start_x, bridge_y, river_width, bridge_thickness))
 
-        # Bridge railings (top and bottom)
+        # Bridge railings for road bridge (top and bottom)
         railing_color = (60, 60, 60)
         railing_height = int(max(2, bridge_thickness * 0.08))
         # top railing
@@ -527,6 +524,47 @@ class App:
         # bottom railing
         pg.draw.rect(self.screen, railing_color,
                      (river_start_x, bridge_y + bridge_thickness, river_width, railing_height))
+
+        # Draw wooden pedestrian bridge (north of the main road)
+        ped_bridge_y = self.size[1] * 0.30  # Where pedestrians cross (Y=0.30 normalized)
+        ped_bridge_width = 25  # Bridge width in pixels
+        ped_bridge_thickness = 20  # Bridge thickness (verbreed van 8 naar 20 pixels)
+        
+        # Wooden bridge colors
+        wood_color = (139, 90, 43)  # Brown wood color
+        wood_dark = (101, 67, 33)  # Darker wood for planks
+        railing_wood = (160, 110, 60)  # Lighter wood for railings
+        
+        # Main wooden bridge deck
+        ped_bridge_rect = (river_start_x, ped_bridge_y - ped_bridge_thickness//2, river_width, ped_bridge_thickness)
+        pg.draw.rect(self.screen, wood_color, ped_bridge_rect)
+        
+        # Wooden planks (vertical lines across the bridge)
+        plank_spacing = 15
+        for x in range(int(river_start_x), int(river_start_x + river_width), plank_spacing):
+            pg.draw.line(self.screen, wood_dark, 
+                        (x, ped_bridge_y - ped_bridge_thickness//2),
+                        (x, ped_bridge_y + ped_bridge_thickness//2), 2)
+        
+        # Wooden railings on both sides
+        railing_height_ped = 6  # Verhoogd van 4 naar 6 pixels voor proporties
+        # Top railing
+        pg.draw.rect(self.screen, railing_wood,
+                     (river_start_x, ped_bridge_y - ped_bridge_thickness//2 - railing_height_ped, 
+                      river_width, railing_height_ped))
+        # Bottom railing  
+        pg.draw.rect(self.screen, railing_wood,
+                     (river_start_x, ped_bridge_y + ped_bridge_thickness//2, 
+                      river_width, railing_height_ped))
+        
+        # Bridge support posts (vertical supports)
+        post_width = 3
+        post_spacing = river_width // 4  # 4 posts across the bridge
+        for i in range(1, 4):  # 3 posts (excluding ends)
+            post_x = river_start_x + i * post_spacing
+            pg.draw.rect(self.screen, wood_dark,
+                        (post_x - post_width//2, ped_bridge_y - ped_bridge_thickness//2 - railing_height_ped,
+                         post_width, ped_bridge_thickness + 2*railing_height_ped))
 
     def print_stats(self):
         """Print current simulation statistics."""

@@ -31,9 +31,9 @@ CARS_EW_TURN_RIGHT: List[Point] = [
     (-0.10, 0.55), (0.30, 0.55), (0.54, 0.55), (0.54, -0.10)
 ]
 
-# Fietsers (rood) en voetgangers (bruin) iets opzij van het midden:
+# Fietsers (rood) following light grey sidewalk areas on the right side of roads:
 BIKES_NS_UP: List[Point] = [
-    # cyclists stay closer to the cars but still on the right side - extend beyond edges
+    # cyclists on right sidewalk (east side) of north-south road
     (0.59, 1.10), (0.59, 0.70), (0.59, -0.10)
 ]
 BIKES_NS_LEFT: List[Point] = [
@@ -45,21 +45,21 @@ BIKES_NS_RIGHT: List[Point] = [
     (0.59, 1.10), (0.59, 0.70), (0.59, 0.60), (1.10, 0.60)
 ]
 BIKES_EW_RIGHT: List[Point] = [
-    # cyclists stay closer to the cars but still on the right side - extend beyond edges
-    (-0.10, 0.70), (0.35, 0.70), (1.10, 0.70)
+    # cyclists on right sidewalk (south side) of east-west road
+    (-0.10, 0.62), (0.35, 0.62), (1.10, 0.62)
 ]
 BIKES_EW_LEFT: List[Point] = [
-    # cyclists stay closer to the cars but still on the right side - extend exit point
-    (-0.10, 0.70), (0.35, 0.50), (0.70, 0.70), (0.70, 1.10)
+    # cyclists turn from right sidewalk to right sidewalk (south road)
+    (-0.10, 0.62), (0.35, 0.62), (0.41, 0.62), (0.41, 1.10)
 ]
 BIKES_EW_TURN_RIGHT: List[Point] = [
-    # cyclists stay closer to the cars but still on the right side - extend exit point
-    (-0.10, 0.70), (0.35, 0.70), (0.50, 0.70), (0.50, -0.10)
+    # cyclists turn from right sidewalk to right sidewalk (north road)
+    (-0.10, 0.62), (0.35, 0.62), (0.59, 0.62), (0.59, -0.10)
 ]
 
 PEDS_EW_RIGHT: List[Point] = [
     # pedestrians on the grass further from the road (north of sidewalk) - extend beyond edges
-    (-0.10, 0.30), (0.20, 0.30), (1.10, 0.30)
+    (-0.10, 0.31), (0.35, 0.31), (1.10, 0.31)
 ]
 
 def to_pixels(path: List[Point], w: int, h: int):
